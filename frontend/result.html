@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HPAlytics — Your Clinical Report</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Nunito:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+
+/* ── PAGE BG ── */
+.result-bg {
+  background: var(--bg-canvas);
+  min-height: calc(100vh - 72px);
+  padding: 48px 0 80px;
+}
+
+/* ── RESULT LAYOUT ── */
+.result-wrap {
+  max-width: 1060px; margin: 0 auto;
+  padding: 0 32px;
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 28px;
+  align-items: start;
+}
+
+/* ── LEFT COLUMN — Score Panel ── */
+.score-panel {
+  background: var(--bg-white);
+  border: 1px solid var(--border-sm);
+  border-radius: var(--r-xl);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  position: sticky; top: 92px;
+}
+
+/* Coloured top header inside score panel */
+.score-panel-header {
+  background: linear-gradient(145deg, var(--teal) 0%, #237878 100%);
+  padding: 32px 28px 28px;
+  text-align: center; position: relative; overflow: hidden;
+}
+.score-panel-header::before {
+  content: '';
+  position: absolute; bottom: -40px; right: -40px;
+  width: 160px; height: 160px; border-radius: 50%;
+  background: rgba(255,255,255,0.07);
+}
+.score-panel-header::after {
+  content: '';
+  position: absolute; top: -30px; left: -30px;
+  width: 110px; height: 110px; border-radius: 50%;
+  background: rgba(255,255,255,0.05);
+}
+
+.sph-label {
+  font-family: 'Nunito', sans-serif;
+  font-size: 10px; font-weight: 800;
+  letter-spacing: 2.5px; text-transform: uppercase;
+  color: rgba(255,255,255,0.55); margin-bottom: 18px;
+}
+
+/* SVG Score Ring */
+.score-ring-svg { display: block; margin: 0 auto 16px; }
+.ring-bg  { fill: none; stroke: rgba(255,255,255,0.12); stroke-width: 10; }
+.ring-fill{ fill: none; stroke-width: 10; stroke-linecap: round; transition: stroke-dashoffset 1.8s cubic-bezier(0.4,0,0.2,1) 0.5s; }
+
+.score-ring-center {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+}
+
+.ring-wrap { position: relative; width: 140px; height: 140px; margin: 0 auto 16px; }
+
+.score-big {
+  font-family: 'Playfair Display', serif;
+  font-size: 44px; font-weight: 700; color: #fff; line-height: 1;
+}
+.score-denom {
+  font-family: 'Nunito', sans-serif;
+  font-size: 12px; font-weight: 600;
+  color: rgba(255,255,255,0.55); margin-top: 4px;
+}
+
+/* Level pill in header */
+.level-pill-sm {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 7px 18px; border-radius: 30px;
+  font-family: 'Nunito', sans-serif;
+  font-size: 13px; font-weight: 800;
+  background: rgba(255,255,255,0.15);
+  color: #fff;
+  border: 1.5px solid rgba(255,255,255,0.25);
+  margin-bottom: 0; position: relative; z-index: 1;
+}
+
+/* Score panel body */
+.score-panel-body { padding: 24px 24px 28px; }
+
+.spb-section-label {
+  font-family: 'Nunito', sans-serif;
+  font-size: 10px; font-weight: 800;
+  letter-spacing: 2px; text-transform: uppercase;
+  color: var(--text-300); margin: 20px 0 12px;
+}
+
+/* Patient detail rows */
+.patient-detail-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px;
+  background: var(--bg-canvas);
+  border: 1px solid var(--border-sm);
+  border-radius: var(--r-sm);
+  margin-bottom: 7px;
+}
+.pdr-icon { font-size: 15px; flex-shrink: 0; }
+.pdr-content {}
+.pdr-key {
+  font-family: 'Nunito', sans-serif;
+  font-size: 9px; font-weight: 800;
+  letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--text-300);
+}
+.pdr-val {
+  font-family: 'Nunito', sans-serif;
+  font-size: 13px; font-weight: 700; color: var(--text-700);
+  margin-top: 1px;
+}
+
+/* Clinical interpretation box */
+.interpretation-box {
+  padding: 16px;
+  background: var(--teal-ultra);
+  border: 1px solid var(--border-sm);
+  border-radius: var(--r-md);
+  font-family: 'Nunito', sans-serif;
+  font-size: 13px; font-weight: 400;
+  color: var(--text-500); line-height: 1.65;
+  font-style: italic;
+  position: relative;
+}
+.interpretation-box::before {
+  content: '"';
+  font-family: 'Playfair Display', serif;
+  font-size: 52px; color: var(--teal-pale);
+  position: absolute; top: -10px; left: 10px; line-height: 1;
+}
+.ib-inner { padding-left: 8px; }
+
+/* Action buttons */
+.action-col { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
+
+/* ── RIGHT COLUMN ── */
+.right-col { display: flex; flex-direction: column; gap: 22px; }
+
+.result-section {
+  background: var(--bg-white);
+  border: 1px solid var(--border-sm);
+  border-radius: var(--r-xl);
+  box-shadow: var(--shadow-sm);
+  padding: 28px 30px;
+}
+
+.rs-header {
+  display: flex; align-items: flex-start;
+  gap: 14px; margin-bottom: 22px;
+}
+
+.rs-header-icon {
+  width: 46px; height: 46px; flex-shrink: 0;
+  background: var(--teal-pale);
+  border-radius: var(--r-sm);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px;
+}
+
+.rs-header-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 20px; font-weight: 600; color: var(--text-900);
+  letter-spacing: -0.3px;
+}
+.rs-header-sub {
+  font-family: 'Nunito', sans-serif;
+  font-size: 13px; color: var(--text-400); font-weight: 400;
+  margin-top: 3px;
+}
+
+/* Stress meter */
+.stress-meter-track {
+  height: 22px; background: var(--bg-subtle);
+  border-radius: 11px; overflow: hidden; position: relative;
+  margin-top: 12px;
+}
+.stress-meter-fill {
+  height: 100%; border-radius: 11px;
+  background: linear-gradient(90deg, var(--sage) 0%, var(--teal-light) 33%, var(--amber) 66%, var(--blush) 100%);
+  transition: width 1.5s var(--ease) 0.8s;
+  position: relative;
+}
+.stress-meter-fill::after {
+  content: attr(data-pct);
+  position: absolute; right: 0; top: 50%;
+  transform: translate(50%, -50%);
+  background: var(--bg-white);
+  border: 2px solid var(--border-md);
+  width: 36px; height: 36px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Nunito', sans-serif;
+  font-size: 10px; font-weight: 800; color: var(--teal);
+  box-shadow: var(--shadow-sm);
+}
+.stress-scale { display: flex; justify-content: space-between; margin-top: 10px; }
+.stress-scale span {
+  font-family: 'Nunito', sans-serif;
+  font-size: 11px; font-weight: 700; color: var(--text-300);
+}
+
+/* Micro habits grid */
+.micro-grid {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;
+}
+.micro-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 14px;
+  background: var(--bg-canvas);
+  border: 1px solid var(--border-sm);
+  border-radius: var(--r-sm);
+  font-family: 'Nunito', sans-serif;
+  font-size: 12px; font-weight: 600; color: var(--text-600);
+  transition: all 180ms var(--ease);
+}
+.micro-item:hover { background: var(--teal-ultra); border-color: var(--border-md); }
+.micro-icon { font-size: 18px; flex-shrink: 0; }
+
+/* Disclaimer strip */
+.disclaimer {
+  padding: 16px 20px;
+  background: var(--amber-pale);
+  border: 1px solid rgba(196,149,42,0.2);
+  border-radius: var(--r-md);
+  display: flex; gap: 12px; align-items: flex-start;
+}
+.disclaimer-icon { font-size: 18px; flex-shrink: 0; }
+.disclaimer-text {
+  font-family: 'Nunito', sans-serif;
+  font-size: 12px; font-weight: 500; color: var(--amber);
+  line-height: 1.55;
+}
+.disclaimer-text strong { font-weight: 800; }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 900px) {
+  .result-wrap { grid-template-columns: 1fr; }
+  .score-panel  { position: static; }
+}
+@media (max-width: 600px) {
+  .result-wrap { padding: 0 16px; }
+  .micro-grid  { grid-template-columns: 1fr; }
+  .result-section { padding: 22px 18px; }
+  .score-panel-body { padding: 18px 18px 22px; }
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="mp-nav">
+  <a href="index.html" class="mp-nav-brand">
+    <div class="nav-mark"><div class="nav-mark-inner">🧠</div></div>
+    <div>
+      <div class="nav-brand-name">HPAlytics</div>
+      <div class="nav-brand-sub">Clinical Platform</div>
+    </div>
+  </a>
+  <div class="nav-steps">
+    <div class="nav-step done"><div class="nav-step-num">✓</div> Entry</div>
+    <div class="nav-sep"></div>
+    <div class="nav-step done"><div class="nav-step-num">✓</div> Profile</div>
+    <div class="nav-sep"></div>
+    <div class="nav-step done"><div class="nav-step-num">✓</div> Assessment</div>
+    <div class="nav-sep"></div>
+    <div class="nav-step active"><div class="nav-step-num">4</div> Report</div>
+  </div>
+</nav>
+
+<main class="mp-page result-bg">
+  <div class="result-wrap">
+
+    <!-- ── LEFT — SCORE PANEL ── -->
+    <div class="score-panel fade-up">
+
+      <div class="score-panel-header">
+        <div class="sph-label">Clinical Assessment Report</div>
+
+        <!-- Animated ring -->
+        <div class="ring-wrap">
+          <svg class="score-ring-svg" viewBox="0 0 140 140" width="140" height="140">
+            <circle class="ring-bg"   cx="70" cy="70" r="58"/>
+            <circle class="ring-fill" cx="70" cy="70" r="58" id="ringArc"
+              stroke="#fff"
+              stroke-dasharray="364.4"
+              stroke-dashoffset="364.4"
+              transform="rotate(-90 70 70)"/>
+          </svg>
+          <div class="score-ring-center">
+            <div class="score-big" id="scoreNum">--</div>
+            <div class="score-denom">/ 75 pts</div>
+          </div>
+        </div>
+
+        <div class="level-pill-sm" id="levelPill">— —</div>
+      </div>
+
+      <div class="score-panel-body">
+        <!-- Interpretation -->
+        <div class="spb-section-label">Clinical Interpretation</div>
+        <div class="interpretation-box">
+          <div class="ib-inner" id="reportText">—</div>
+        </div>
+
+        <!-- Patient details -->
+        <div class="spb-section-label">Patient</div>
+        <div class="patient-detail-row">
+          <div class="pdr-icon">👤</div>
+          <div class="pdr-content">
+            <div class="pdr-key">Name</div>
+            <div class="pdr-val" id="pName">—</div>
+          </div>
+        </div>
+        <div class="patient-detail-row">
+          <div class="pdr-icon">📅</div>
+          <div class="pdr-content">
+            <div class="pdr-key">Age / Gender</div>
+            <div class="pdr-val" id="pAgeGender">—</div>
+          </div>
+        </div>
+        <div class="patient-detail-row">
+          <div class="pdr-icon">🏷️</div>
+          <div class="pdr-content">
+            <div class="pdr-key">Role</div>
+            <div class="pdr-val" id="pRole">—</div>
+          </div>
+        </div>
+        <div class="patient-detail-row">
+          <div class="pdr-icon">📧</div>
+          <div class="pdr-content">
+            <div class="pdr-key">Email</div>
+            <div class="pdr-val" id="pEmail" style="font-size:11px;">—</div>
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="action-col">
+          <button class="btn-primary" onclick="downloadPDF()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Download PDF Report
+          </button>
+          <button class="btn-secondary" onclick="window.location.href='index.html'">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6M23 20v-6h-6"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>
+            New Assessment
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── RIGHT COLUMN ── -->
+    <div class="right-col">
+
+      <!-- Stress Meter -->
+      <div class="result-section fade-up-1">
+        <div class="rs-header">
+          <div class="rs-header-icon">🌡️</div>
+          <div>
+            <div class="rs-header-title">Stress Intensity Meter</div>
+            <div class="rs-header-sub">Your overall stress load on a clinical scale</div>
+          </div>
+        </div>
+        <div class="stress-meter-track">
+          <div class="stress-meter-fill" id="meterFill" style="width:0%" data-pct="0%"></div>
+        </div>
+        <div class="stress-scale">
+          <span style="color:var(--sage)">● Low</span>
+          <span>Moderate</span>
+          <span style="color:var(--blush)">High ●</span>
+        </div>
+      </div>
+
+      <!-- Dimension Breakdown -->
+      <div class="result-section fade-up-2">
+        <div class="rs-header">
+          <div class="rs-header-icon">📊</div>
+          <div>
+            <div class="rs-header-title">Stress Dimension Analysis</div>
+            <div class="rs-header-sub">Breakdown across 4 validated clinical dimensions</div>
+          </div>
+        </div>
+        <div id="breakdownBars"></div>
+      </div>
+
+      <!-- Remedy Protocol -->
+      <div class="result-section fade-up-3">
+        <div class="rs-header">
+          <div class="rs-header-icon">💊</div>
+          <div>
+            <div class="rs-header-title">Personalised Remedy Protocol</div>
+            <div class="rs-header-sub">Evidence-based interventions tailored to your unique stress profile</div>
+          </div>
+        </div>
+        <div id="remedyContainer"></div>
+      </div>
+
+      <!-- Micro habits -->
+      <div class="result-section fade-up-4">
+        <div class="rs-header">
+          <div class="rs-header-icon">🌿</div>
+          <div>
+            <div class="rs-header-title">Daily Wellness Micro-Habits</div>
+            <div class="rs-header-sub">Small actions, consistent practice, meaningful change</div>
+          </div>
+        </div>
+        <div class="micro-grid" id="microGrid"></div>
+      </div>
+
+      <!-- Disclaimer -->
+      <div class="disclaimer fade-up-5">
+        <div class="disclaimer-icon">⚕️</div>
+        <div class="disclaimer-text">
+          <strong>Medical Disclaimer:</strong> This assessment is a psychometric screening tool and does not constitute a clinical diagnosis. If you are experiencing severe or persistent symptoms, please consult a qualified mental health professional or your primary care physician.
+        </div>
+      </div>
+
+    </div><!-- /right-col -->
+  </div>
+</main>
+
+<script>
+const MICRO_HABITS = [
+  {icon:'🌅', text:'5-min morning breathing exercise'},
+  {icon:'💧', text:'8 glasses of water daily'},
+  {icon:'🚶', text:'20-min outdoor walk'},
+  {icon:'📵', text:'Screen-free 30 min before bed'},
+  {icon:'🥗', text:'One well-balanced meal daily'},
+  {icon:'😴', text:'Consistent sleep & wake time'},
+  {icon:'🤝', text:'Connect with one friend today'},
+  {icon:'📓', text:'Journal 3 gratitudes tonight'},
+];
+
+const BD_CONFIG = {
+  cognitive: { label:'Cognitive Load',   icon:'🧩', cls:'cog', max:20 },
+  anxiety:   { label:'Anxiety Index',    icon:'💭', cls:'anx', max:10 },
+  emotional: { label:'Emotional State',  icon:'💛', cls:'emo', max:25 },
+  sleep:     { label:'Sleep Disruption', icon:'💤', cls:'slp', max:15 },
+};
+
+const ROLE_LABELS = { student:'Student 🎓', working:'Working Professional 💼', home:'Homemaker 🏠' };
+const LEVEL_DOT   = { Low:'🟢', Moderate:'🟡', High:'🔴' };
+
+window.addEventListener('DOMContentLoaded', () => {
+  /* Pull stored data */
+  let score     = parseInt(localStorage.getItem('score')  || '0');
+  let level     = localStorage.getItem('result')          || 'Low';
+  let report    = localStorage.getItem('report')          || '—';
+  let breakdown = {}; try { breakdown = JSON.parse(localStorage.getItem('breakdown') || '{}'); } catch(e){}
+  let remedies  = []; try { remedies  = JSON.parse(localStorage.getItem('remedies')  || '[]'); } catch(e){}
+  let patient   = {}; try { patient   = JSON.parse(localStorage.getItem('patient')   || '{}'); } catch(e){}
+
+  /* ── Score ring ── */
+  const MAX = 75;
+  const pct = Math.min((score / MAX) * 100, 100);
+  const circ = 364.4;
+  const offset = circ - (pct / 100) * circ;
+
+  document.getElementById('scoreNum').textContent = score;
+
+  // Ring colour by level
+  const ringColours = { Low:'#5C8A6B', Moderate:'#C4952A', High:'#C4796B' };
+  const arc = document.getElementById('ringArc');
+  arc.style.stroke = ringColours[level] || '#1B6B6B';
+  setTimeout(() => { arc.style.strokeDashoffset = offset; }, 200);
+
+  /* ── Level pill ── */
+  const pill = document.getElementById('levelPill');
+  pill.textContent = (LEVEL_DOT[level] || '⚪') + '  ' + level + ' Stress';
+
+  /* ── Report text ── */
+  document.getElementById('reportText').textContent = report;
+
+  /* ── Patient details ── */
+  document.getElementById('pName').textContent      = patient.name || '—';
+  document.getElementById('pAgeGender').textContent = (patient.age || '—') + ' yrs · ' + (patient.gender || '—');
+  document.getElementById('pRole').textContent      = ROLE_LABELS[patient.role] || patient.role || '—';
+  document.getElementById('pEmail').textContent     = patient.email || '—';
+
+  /* ── Stress meter ── */
+  const meterEl = document.getElementById('meterFill');
+  meterEl.setAttribute('data-pct', Math.round(pct) + '%');
+  setTimeout(() => { meterEl.style.width = pct + '%'; }, 300);
+
+  /* ── Breakdown bars ── */
+  const bdContainer = document.getElementById('breakdownBars');
+  Object.entries(BD_CONFIG).forEach(([key, cfg]) => {
+    const val = breakdown[key] || 0;
+    const barPct = Math.min((val / cfg.max) * 100, 100);
+    const row = document.createElement('div');
+    row.className = 'bd-row';
+    row.innerHTML = `
+      <div class="bd-row-top">
+        <div class="bd-row-label">${cfg.icon}&nbsp;&nbsp;${cfg.label}</div>
+        <div class="bd-row-val">${val}</div>
+      </div>
+      <div class="bd-track">
+        <div class="bd-fill ${cfg.cls}" style="width:0%" data-w="${barPct}"></div>
+      </div>`;
+    bdContainer.appendChild(row);
+  });
+  setTimeout(() => {
+    document.querySelectorAll('.bd-fill').forEach(el => {
+      el.style.width = el.dataset.w + '%';
+    });
+  }, 500);
+
+  /* ── Remedies ── */
+  const rc = document.getElementById('remedyContainer');
+  if (!remedies.length) {
+    rc.innerHTML = `<p style="font-family:'Nunito';color:var(--text-400);font-size:14px;padding:8px 0;">Great news — no critical stress patterns detected. Keep up your healthy habits!</p>`;
+  } else {
+    remedies.forEach((r, i) => {
+      const wrap = document.createElement('div');
+      wrap.className = 'remedy-wrap' + (i === 0 ? ' open' : '');
+      const items = (r.details || []).map(d => `<div class="remedy-tip"><div class="remedy-tip-dot"></div>${d}</div>`).join('');
+      wrap.innerHTML = `
+        <div class="remedy-head" onclick="toggleRemedy(this)">
+          <div class="remedy-icon-box">${r.icon || '💊'}</div>
+          <div>
+            <div class="remedy-head-title">${r.title}</div>
+            <div class="remedy-head-count">${(r.details||[]).length} evidence-based recommendations</div>
+          </div>
+          <svg class="remedy-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+        </div>
+        <div class="remedy-body">${items}</div>`;
+      rc.appendChild(wrap);
+    });
+  }
+
+  /* ── Micro habits ── */
+  const mg = document.getElementById('microGrid');
+  MICRO_HABITS.forEach(h => {
+    const el = document.createElement('div');
+    el.className = 'micro-item';
+    el.innerHTML = `<span class="micro-icon">${h.icon}</span>${h.text}`;
+    mg.appendChild(el);
+  });
+});
+
+function toggleRemedy(head) {
+  head.closest('.remedy-wrap').classList.toggle('open');
+}
+
+/* ── PDF EXPORT ── */
+ async function downloadPDF(){
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit:'mm', format:'a4' });
+
+  // 🟩 OUTER BORDER
+doc.setDrawColor(27, 107, 107); // teal
+doc.setLineWidth(1.2);
+doc.rect(10, 10, 190, 277);
+
+// 🟩 INNER LIGHT BORDER
+doc.setDrawColor(180, 200, 200);
+doc.setLineWidth(0.3);
+doc.rect(14, 14, 182, 269);
+
+  let patient   = JSON.parse(localStorage.getItem('patient') || '{}');
+  let breakdown = JSON.parse(localStorage.getItem('breakdown') || '{}');
+  let remedies  = JSON.parse(localStorage.getItem('remedies') || '[]');
+
+  const score   = localStorage.getItem('score')  || '0';
+  const level   = localStorage.getItem('result') || 'N/A';
+  let report    = localStorage.getItem('report') || '';
+
+  // ✨ CLEAN REPORT TEXT
+  report = report.replace(/\.\./g,'.'); // remove double dots
+
+  let y = 20;
+
+  // ===== HEADER =====
+  doc.setFont("helvetica","bold");
+  doc.setFontSize(18);
+  doc.text("HPAlytics Clinical Report", 105, y, {align:"center"});
+  y += 12;
+
+  // ===== PATIENT DETAILS =====
+  doc.setFontSize(12);
+  doc.setFont("helvetica","bold");
+  doc.text("Patient Information", 20, y);
+  y += 8;
+
+  doc.setFont("helvetica","normal");
+  doc.setFontSize(11);
+
+  doc.text("Name", 20, y);
+  doc.text(": " + (patient.name || "N/A"), 60, y); y+=6;
+
+  doc.text("Age", 20, y);
+  doc.text(": " + (patient.age || "N/A"), 60, y); y+=6;
+
+  doc.text("Gender", 20, y);
+  doc.text(": " + (patient.gender || "N/A"), 60, y); y+=6;
+
+  doc.text("Role", 20, y);
+  doc.text(": " + (patient.role || "N/A"), 60, y); y+=10;
+
+  // ===== RESULT =====
+  doc.setFont("helvetica","bold");
+  doc.text("Assessment Result", 20, y);
+  y+=8;
+
+  doc.setFont("helvetica","normal");
+
+  doc.text("Stress Level", 20, y);
+  doc.text(": " + level, 60, y); y+=6;
+
+  doc.text("Score", 20, y);
+  doc.text(": " + score + " / 75", 60, y); y+=10;
+
+  // ===== INTERPRETATION =====
+  doc.setFont("helvetica","bold");
+  doc.text("Clinical Interpretation", 20, y);
+  y+=8;
+
+  doc.setFont("helvetica","normal");
+
+  let lines = doc.splitTextToSize(report, 170);
+  doc.text(lines, 20, y);
+  y += lines.length * 6 + 8;
+
+  // ===== BREAKDOWN =====
+  doc.setFont("helvetica","bold");
+  doc.text("Stress Breakdown", 20, y);
+  y+=8;
+
+  doc.setFont("helvetica","normal");
+
+  const format = (t)=>t.charAt(0).toUpperCase()+t.slice(1);
+
+  Object.entries(breakdown).forEach(([k,v])=>{
+    doc.text(format(k), 20, y);
+    doc.text(": " + v, 60, y);
+    y+=6;
+  });
+
+  y+=8;
+
+  // ===== REMEDIES =====
+  doc.setFont("helvetica","bold");
+  doc.text("Recommended Plan", 20, y);
+  y+=8;
+
+  doc.setFont("helvetica","normal");
+
+  remedies.slice(0,3).forEach(r=>{
+    doc.text("• " + r.title, 20, y);
+    y+=6;
+  });
+
+  // ===== FOOTER =====
+  doc.setFontSize(9);
+  doc.text(
+    "Confidential Clinical Report — HPAlytics",
+    105,
+    285,
+    {align:"center"}
+  );
+
+  // ✅ UNIQUE NAME
+  doc.save("HPAlytics_Report_" + Date.now() + ".pdf");
+}
+</script>
+</body>
+</html>

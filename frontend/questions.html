@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HPAlytics — Assessment</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Nunito:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+
+/* ── FULL-PAGE LAYOUT ── */
+.q-shell {
+  min-height: calc(100vh - 72px);
+  display: grid;
+  grid-template-columns: 300px 1fr;
+}
+
+/* ── LEFT SIDEBAR — progress tracker ── */
+.q-sidebar {
+  background: var(--bg-white);
+  border-right: 1px solid var(--border-sm);
+  padding: 40px 28px;
+  display: flex; flex-direction: column;
+  position: sticky; top: 72px; height: calc(100vh - 72px);
+  overflow-y: auto;
+}
+
+.sidebar-patient-card {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 16px;
+  background: var(--teal-ultra);
+  border: 1px solid var(--border-sm);
+  border-radius: var(--r-md);
+  margin-bottom: 28px;
+}
+
+.patient-avatar {
+  width: 42px; height: 42px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--teal), var(--teal-light));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; flex-shrink: 0;
+  color: white; font-weight: 700;
+  font-family: 'Playfair Display', serif;
+}
+
+.patient-name {
+  font-family: 'Nunito', sans-serif;
+  font-size: 14px; font-weight: 800; color: var(--text-900);
+}
+.patient-role {
+  font-family: 'Nunito', sans-serif;
+  font-size: 11px; font-weight: 600; color: var(--teal-mid);
+  margin-top: 1px;
+}
+
+/* Dim list of all questions in sidebar */
+.q-sidebar-title {
+  font-family: 'Nunito', sans-serif;
+  font-size: 10px; font-weight: 800;
+  letter-spacing: 2px; text-transform: uppercase;
+  color: var(--text-300); margin-bottom: 14px;
+}
+
+.q-dot-list { display: flex; flex-direction: column; gap: 6px; }
+
+.q-dot-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px; border-radius: var(--r-sm);
+  font-family: 'Nunito', sans-serif;
+  font-size: 12px; font-weight: 500; color: var(--text-300);
+  transition: all 200ms var(--ease);
+  cursor: default;
+}
+
+.q-dot-item .q-dot-num {
+  width: 22px; height: 22px; border-radius: 50%;
+  background: var(--bg-subtle); flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 800; color: var(--text-300);
+  transition: all 200ms var(--ease);
+}
+
+.q-dot-item.answered {
+  color: var(--teal-mid);
+}
+.q-dot-item.answered .q-dot-num {
+  background: var(--teal-pale); color: var(--teal);
+}
+
+.q-dot-item.current {
+  background: var(--teal-pale);
+  color: var(--teal);
+  font-weight: 700;
+}
+.q-dot-item.current .q-dot-num {
+  background: var(--teal); color: white;
+}
+
+.q-dot-text {
+  white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; flex: 1;
+  font-size: 11px;
+}
+
+/* Score running total */
+.running-score-card {
+  margin-top: auto;
+  padding: 16px;
+  background: var(--bg-canvas);
+  border: 1px solid var(--border-sm);
+  border-radius: var(--r-md);
+}
+.rs-label {
+  font-family: 'Nunito', sans-serif;
+  font-size: 10px; font-weight: 800;
+  letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--text-300); margin-bottom: 6px;
+}
+.rs-val {
+  font-family: 'Playfair Display', serif;
+  font-size: 32px; font-weight: 700; color: var(--teal);
+  line-height: 1;
+}
+.rs-max {
+  font-family: 'Nunito', sans-serif;
+  font-size: 12px; color: var(--text-400); margin-top: 2px;
+}
+
+/* ── RIGHT — question area ── */
+.q-main {
+  background: var(--bg-canvas);
+  padding: 48px 64px;
+  display: flex; flex-direction: column;
+  justify-content: flex-start;
+}
+
+/* Top row — progress + stats */
+.q-top-row {
+  display: flex; align-items: center; gap: 16px;
+  margin-bottom: 40px;
+}
+
+.q-top-progress { flex: 1; }
+.q-top-progress-label {
+  display: flex; justify-content: space-between;
+  font-family: 'Nunito', sans-serif;
+  font-size: 12px; font-weight: 700; color: var(--text-400);
+  margin-bottom: 8px;
+}
+
+.q-meta-chips { display: flex; gap: 8px; flex-shrink: 0; }
+.q-meta-chip {
+  padding: 7px 14px; border-radius: 20px;
+  background: var(--bg-white);
+  border: 1px solid var(--border-sm);
+  font-family: 'Nunito', sans-serif;
+  font-size: 12px; font-weight: 700; color: var(--text-500);
+  white-space: nowrap;
+  box-shadow: var(--shadow-xs);
+}
+
+/* ── QUESTION CARD ── */
+.q-card {
+  background: var(--bg-white);
+  border: 1px solid var(--border-sm);
+  border-radius: var(--r-xl);
+  box-shadow: var(--shadow-lg);
+  padding: 44px 48px;
+  animation: cardReveal 0.4s var(--ease-spring) both;
+}
+
+@keyframes cardReveal {
+  from { opacity: 0; transform: translateY(20px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Category tag inside card */
+.q-cat-tag {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 6px 14px; border-radius: 20px;
+  font-family: 'Nunito', sans-serif;
+  font-size: 11px; font-weight: 800;
+  letter-spacing: 1.5px; text-transform: uppercase;
+  margin-bottom: 22px;
+}
+
+.q-num-line {
+  font-family: 'Nunito', sans-serif;
+  font-size: 12px; font-weight: 700;
+  color: var(--text-300); letter-spacing: 1px;
+  margin-bottom: 14px;
+}
+
+.q-text {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(20px, 2.8vw, 28px);
+  font-weight: 600; line-height: 1.35;
+  color: var(--text-900); letter-spacing: -0.3px;
+  margin-bottom: 36px;
+}
+
+/* ── ANSWER BUTTONS ── */
+.answer-row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+}
+
+.ans-btn {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 10px; padding: 20px 8px;
+  background: var(--bg-warm);
+  border: 2px solid var(--border-sm);
+  border-radius: var(--r-md);
+  cursor: pointer;
+  transition: all 220ms var(--ease-spring);
+  text-align: center; position: relative; overflow: hidden;
+}
+
+.ans-btn::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: var(--hover-color, transparent);
+  opacity: 0; transition: opacity 180ms;
+}
+
+.ans-btn:hover { transform: translateY(-5px); box-shadow: var(--shadow-md); }
+.ans-btn:hover::before { opacity: 1; }
+
+.ans-btn.never    { --hover-color: rgba(92,138,107,0.08);  }
+.ans-btn.rarely   { --hover-color: rgba(61,163,163,0.08);  }
+.ans-btn.sometimes{ --hover-color: rgba(196,149,42,0.08);  }
+.ans-btn.often    { --hover-color: rgba(196,121,107,0.10); }
+.ans-btn.always   { --hover-color: rgba(180,60,60,0.08);   }
+
+.ans-btn.never:hover    { border-color: var(--sage);  }
+.ans-btn.rarely:hover   { border-color: var(--teal-mid); }
+.ans-btn.sometimes:hover{ border-color: var(--amber); }
+.ans-btn.often:hover    { border-color: var(--blush); }
+.ans-btn.always:hover   { border-color: #B43C3C; }
+
+/* Picked state */
+.ans-btn.picking {
+  transform: scale(1.04) translateY(-4px);
+  box-shadow: 0 12px 32px rgba(27,107,107,0.16);
+}
+
+.ans-emoji { font-size: 26px; position: relative; z-index: 1; }
+
+.ans-label {
+  font-family: 'Nunito', sans-serif;
+  font-size: 12px; font-weight: 800;
+  color: var(--text-700); position: relative; z-index: 1;
+  letter-spacing: 0.2px;
+}
+
+.ans-score-tag {
+  display: inline-block;
+  padding: 2px 8px; border-radius: 10px;
+  background: var(--bg-subtle);
+  font-family: 'Nunito', sans-serif;
+  font-size: 10px; font-weight: 700;
+  color: var(--text-400); position: relative; z-index: 1;
+}
+
+/* Frequency bar under card */
+.frequency-hint {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-top: 20px; padding: 0 4px;
+}
+.fh-text {
+  font-family: 'Nunito', sans-serif;
+  font-size: 11px; font-weight: 600; color: var(--text-300);
+}
+
+/* Loading overlay */
+.loading-overlay {
+  position: fixed; inset: 0; z-index: 400;
+  background: var(--bg-canvas);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 20px; opacity: 0; pointer-events: none;
+  transition: opacity 0.35s;
+}
+.loading-overlay.active { opacity: 1; pointer-events: all; }
+
+.loading-brain-wrap {
+  width: 90px; height: 90px; border-radius: 50%;
+  background: var(--teal-pale); border: 2px solid var(--border-md);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 38px;
+  animation: breathe 2s ease-in-out infinite;
+}
+@keyframes breathe { 0%,100%{transform:scale(1);} 50%{transform:scale(1.08);} }
+
+.loading-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 24px; font-weight: 600; color: var(--text-900);
+}
+.loading-sub {
+  font-family: 'Nunito', sans-serif;
+  font-size: 14px; color: var(--text-400); font-weight: 500;
+}
+.loading-bar-wrap {
+  width: 240px; height: 5px;
+  background: var(--bg-subtle); border-radius: 3px; overflow: hidden;
+}
+.loading-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--teal), var(--teal-light));
+  border-radius: 3px; animation: loadProgress 2.2s var(--ease) forwards;
+}
+@keyframes loadProgress { from{width:0;} to{width:100%;} }
+
+/* Loading dots */
+.loading-dots { display: flex; gap: 6px; }
+.loading-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--teal-light);
+  animation: dotBounce 1.2s ease infinite;
+}
+.loading-dot:nth-child(2){ animation-delay: 0.2s; }
+.loading-dot:nth-child(3){ animation-delay: 0.4s; }
+@keyframes dotBounce { 0%,80%,100%{transform:scale(0.7);opacity:0.4;} 40%{transform:scale(1.1);opacity:1;} }
+
+@media (max-width: 960px) {
+  .q-shell { grid-template-columns: 1fr; }
+  .q-sidebar { display: none; }
+  .q-main { padding: 32px 24px; }
+}
+@media (max-width: 600px) {
+  .answer-row { grid-template-columns: repeat(3,1fr); }
+  .q-card { padding: 28px 22px; }
+  .q-meta-chips { display: none; }
+}
+@media (max-width: 400px) {
+  .answer-row { grid-template-columns: repeat(2,1fr); }
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="mp-nav">
+  <a href="index.html" class="mp-nav-brand">
+    <div class="nav-mark"><div class="nav-mark-inner">🧠</div></div>
+    <div>
+      <div class="nav-brand-name">HPAlytics</div>
+      <div class="nav-brand-sub">Clinical Platform</div>
+    </div>
+  </a>
+  <div class="nav-steps">
+    <div class="nav-step done"><div class="nav-step-num">✓</div> Entry</div>
+    <div class="nav-sep"></div>
+    <div class="nav-step done"><div class="nav-step-num">✓</div> Profile</div>
+    <div class="nav-sep"></div>
+    <div class="nav-step active"><div class="nav-step-num">3</div> Assessment</div>
+    <div class="nav-sep"></div>
+    <div class="nav-step"><div class="nav-step-num">4</div> Report</div>
+  </div>
+</nav>
+
+<!-- Loading overlay -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-brain-wrap">🧠</div>
+  <div class="loading-title">Analysing your responses…</div>
+  <div class="loading-sub">Clinical AI is computing your stress profile</div>
+  <div class="loading-bar-wrap"><div class="loading-bar-fill"></div></div>
+  <div class="loading-dots">
+    <div class="loading-dot"></div>
+    <div class="loading-dot"></div>
+    <div class="loading-dot"></div>
+  </div>
+</div>
+
+<main class="mp-page">
+  <div class="q-shell">
+
+    <!-- ── SIDEBAR ── -->
+    <aside class="q-sidebar">
+      <!-- Patient card -->
+      <div class="sidebar-patient-card">
+        <div class="patient-avatar" id="patientInitial">?</div>
+        <div>
+          <div class="patient-name" id="patientNameSide">Loading…</div>
+          <div class="patient-role" id="patientRoleSide">—</div>
+        </div>
+      </div>
+
+      <div class="q-sidebar-title">Questions</div>
+      <div class="q-dot-list" id="dotList"></div>
+
+      <!-- Running score -->
+      <div class="running-score-card">
+        <div class="rs-label">Score so far</div>
+        <div class="rs-val" id="runningScore">0</div>
+        <div class="rs-max">out of <span id="maxPossible">0</span> possible</div>
+      </div>
+    </aside>
+
+    <!-- ── MAIN QUESTION AREA ── -->
+    <div class="q-main">
+
+      <!-- Top: progress + chips -->
+      <div class="q-top-row">
+        <div class="q-top-progress">
+          <div class="q-top-progress-label">
+            <span id="progressText">Question 1 of 15</span>
+            <span id="progressPct" style="color:var(--teal);">0%</span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill" id="progressFill" style="width:0%"></div>
+          </div>
+        </div>
+        <div class="q-meta-chips">
+          <div class="q-meta-chip" id="domainChip">—</div>
+          <div class="q-meta-chip" id="remainChip">15 remaining</div>
+        </div>
+      </div>
+
+      <!-- Question card -->
+      <div class="q-card" id="qCard">
+        <!-- Category tag -->
+        <div class="q-cat-tag" id="catTag">—</div>
+
+        <!-- Q number -->
+        <div class="q-num-line" id="qNumLine">QUESTION 01 / 15</div>
+
+        <!-- Question text -->
+        <div class="q-text" id="qText">Loading question…</div>
+
+        <!-- Answer buttons -->
+        <div class="answer-row" id="answerRow"></div>
+      </div>
+
+      <!-- Frequency hint -->
+      <div class="frequency-hint">
+        <span class="fh-text">Never / Rarely</span>
+        <span class="fh-text" style="color:var(--teal-mid);font-weight:700;">← Frequency Scale →</span>
+        <span class="fh-text">Often / Always</span>
+      </div>
+
+    </div><!-- /q-main -->
+  </div>
+</main>
+
+<script>
+/* ─── DATA ─── */
+const QUESTIONS = {
+  student: [
+    {q:"How frequently do you experience cognitive overload due to your academic workload?", cat:"cognitive"},
+    {q:"Do you experience anticipatory anxiety before examinations or evaluations?", cat:"anxiety"},
+    {q:"How often does academic pressure disrupt your sleep cycle?", cat:"sleep"},
+    {q:"Do you wake up feeling mentally fatigued despite what feels like adequate rest?", cat:"sleep"},
+    {q:"Do you struggle to maintain focus during study sessions?", cat:"cognitive"},
+    {q:"Do deadlines trigger physiological stress responses such as tension or rapid heartbeat?", cat:"anxiety"},
+    {q:"Do you feel emotionally drained due to academic expectations from others?", cat:"emotional"},
+    {q:"Do you experience persistent low mood or disinterest related to your studies?", cat:"emotional"},
+    {q:"Do you feel pressure from long-term career and academic performance expectations?", cat:"cognitive"},
+    {q:"Do you experience burnout or complete mental exhaustion during exam periods?", cat:"emotional"},
+    {q:"Do distractions significantly reduce your productive study time?", cat:"cognitive"},
+    {q:"Do you feel dissatisfied or frustrated with your academic performance?", cat:"emotional"},
+    {q:"Do you feel mentally calm and at ease during a typical day?", cat:"emotional"},
+    {q:"Do you feel physically exhausted after long study sessions?", cat:"sleep"},
+    {q:"Do you feel mentally overloaded for most of your waking hours?", cat:"cognitive"}
+  ],
+  working: [
+    {q:"Do you experience sustained pressure and cognitive load during your work hours?", cat:"cognitive"},
+    {q:"Do work deadlines trigger anxiety or heightened stress responses?", cat:"anxiety"},
+    {q:"Does work-related stress interfere with the quality of your sleep?", cat:"sleep"},
+    {q:"Do you wake up feeling tired or unrefreshed despite sufficient hours of sleep?", cat:"sleep"},
+    {q:"Do you find it difficult to focus on tasks due to your workload?", cat:"cognitive"},
+    {q:"Do workplace expectations or performance standards create significant mental strain?", cat:"anxiety"},
+    {q:"Do you feel emotionally drained or depleted after your workday?", cat:"emotional"},
+    {q:"Do you experience low motivation or disengagement related to your work?", cat:"emotional"},
+    {q:"Do you feel overwhelmed by your professional responsibilities?", cat:"cognitive"},
+    {q:"Do you experience burnout symptoms such as detachment or cynicism frequently?", cat:"emotional"},
+    {q:"Does stress at work measurably reduce your output or productivity?", cat:"cognitive"},
+    {q:"Do you feel undervalued or unappreciated in your workplace?", cat:"emotional"},
+    {q:"Do you feel mentally calm and composed during your working hours?", cat:"emotional"},
+    {q:"Do you feel physically exhausted by the end of your work day?", cat:"sleep"},
+    {q:"Do you feel mentally overloaded throughout most of your day?", cat:"cognitive"}
+  ],
+  home: [
+    {q:"Do your household responsibilities feel mentally overwhelming to manage?", cat:"cognitive"},
+    {q:"Do you experience stress due to family or social expectations placed on you?", cat:"anxiety"},
+    {q:"Does daily stress negatively affect the quality of your sleep?", cat:"sleep"},
+    {q:"Do you often wake up feeling tired or emotionally unrested?", cat:"sleep"},
+    {q:"Do you struggle to manage multiple household or family responsibilities simultaneously?", cat:"cognitive"},
+    {q:"Do others' expectations of you create significant mental or emotional pressure?", cat:"anxiety"},
+    {q:"Do you feel emotionally unsupported in your day-to-day life?", cat:"emotional"},
+    {q:"Do you feel low, unmotivated, or emotionally flat during most of your days?", cat:"emotional"},
+    {q:"Do you feel overwhelmed by the demands of your daily routine?", cat:"cognitive"},
+    {q:"Do you experience burnout or exhaustion from the repetitive nature of your tasks?", cat:"emotional"},
+    {q:"Does stress reduce your efficiency in completing daily responsibilities?", cat:"cognitive"},
+    {q:"Do you feel your efforts go unnoticed or unrecognised by those around you?", cat:"emotional"},
+    {q:"Do you feel mentally calm and settled during a typical day at home?", cat:"emotional"},
+    {q:"Do you feel physically exhausted by the end of a typical day?", cat:"sleep"},
+    {q:"Do you feel mentally overloaded during most hours of your day?", cat:"cognitive"}
+  ]
+};
+
+const ANSWERS = [
+  { label:'Never',     emoji:'😌', val:1, cls:'never'     },
+  { label:'Rarely',    emoji:'🙂', val:2, cls:'rarely'    },
+  { label:'Sometimes', emoji:'😐', val:3, cls:'sometimes' },
+  { label:'Often',     emoji:'😟', val:4, cls:'often'     },
+  { label:'Always',    emoji:'😰', val:5, cls:'always'    },
+];
+
+const CAT_CONFIG = {
+  cognitive: { label:'Cognitive',  icon:'🧩', color:'#1B6B6B', bg:'rgba(27,107,107,0.10)',  border:'rgba(27,107,107,0.2)'  },
+  anxiety:   { label:'Anxiety',    icon:'💭', color:'#C4796B', bg:'rgba(196,121,107,0.10)', border:'rgba(196,121,107,0.2)' },
+  sleep:     { label:'Sleep',      icon:'💤', color:'#5B8FCC', bg:'rgba(91,143,204,0.10)',  border:'rgba(91,143,204,0.2)'  },
+  emotional: { label:'Emotional',  icon:'💛', color:'#C4952A', bg:'rgba(196,149,42,0.10)',  border:'rgba(196,149,42,0.2)'  },
+};
+
+const ROLE_LABELS = { student:'Student 🎓', working:'Professional 💼', home:'Homemaker 🏠' };
+
+/* ─── STATE ─── */
+let patient   = {};
+let questions = [];
+let idx       = 0;
+let answered  = [];
+let totalScore= 0;
+
+/* ─── INIT ─── */
+window.addEventListener('DOMContentLoaded', () => {
+  try { patient = JSON.parse(localStorage.getItem('patient') || '{}'); } catch(e) {}
+
+  const role = patient.role || 'student';
+  questions  = QUESTIONS[role] || QUESTIONS.student;
+
+  // Patient info in sidebar
+  const name = patient.name || 'Patient';
+  document.getElementById('patientNameSide').textContent = name;
+  document.getElementById('patientRoleSide').textContent = ROLE_LABELS[role] || role;
+  document.getElementById('patientInitial').textContent  = name.charAt(0).toUpperCase();
+  document.getElementById('maxPossible').textContent     = questions.length * 5;
+
+  buildDotList();
+  renderQ();
+});
+
+/* ─── BUILD DOT LIST ─── */
+function buildDotList() {
+  const list = document.getElementById('dotList');
+  list.innerHTML = '';
+  questions.forEach((q, i) => {
+    const div = document.createElement('div');
+    div.className = 'q-dot-item' + (i === 0 ? ' current' : '');
+    div.id = `dot-${i}`;
+    div.innerHTML = `
+      <div class="q-dot-num">${i+1}</div>
+      <div class="q-dot-text">${q.q.substring(0, 34)}…</div>`;
+    list.appendChild(div);
+  });
+}
+
+/* ─── RENDER QUESTION ─── */
+function renderQ() {
+  const q   = questions[idx];
+  const cat = CAT_CONFIG[q.cat] || CAT_CONFIG.cognitive;
+  const pct = Math.round((idx / questions.length) * 100);
+
+  // Progress
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressText').textContent = `Question ${idx+1} of ${questions.length}`;
+  document.getElementById('progressPct').textContent  = pct + '%';
+  document.getElementById('remainChip').textContent   = (questions.length - idx) + ' remaining';
+  document.getElementById('domainChip').textContent   = cat.icon + ' ' + cat.label;
+  document.getElementById('runningScore').textContent = totalScore;
+
+  // Cat tag
+  const tag = document.getElementById('catTag');
+  tag.textContent = cat.icon + '  ' + cat.label + ' Domain';
+  tag.style.cssText = `display:inline-flex;align-items:center;gap:7px;padding:6px 14px;
+    border-radius:20px;font-family:'Nunito',sans-serif;font-size:11px;font-weight:800;
+    letter-spacing:1.5px;text-transform:uppercase;margin-bottom:22px;
+    background:${cat.bg};color:${cat.color};border:1px solid ${cat.border};`;
+
+  // Q number + text
+  document.getElementById('qNumLine').textContent = `QUESTION ${String(idx+1).padStart(2,'0')} / ${String(questions.length).padStart(2,'0')}`;
+  document.getElementById('qText').textContent    = q.q;
+
+  // Card animation — re-trigger
+  const card = document.getElementById('qCard');
+  card.style.animation = 'none';
+  void card.offsetWidth;
+  card.style.animation = '';
+
+  // Answers
+  const row = document.getElementById('answerRow');
+  row.innerHTML = '';
+  ANSWERS.forEach(a => {
+    const btn = document.createElement('button');
+    btn.className = `ans-btn ${a.cls}`;
+    btn.innerHTML = `
+      <div class="ans-emoji">${a.emoji}</div>
+      <div class="ans-label">${a.label}</div>
+      <div class="ans-score-tag">Score ${a.val}</div>`;
+    btn.onclick = () => pick(a.val, btn);
+    row.appendChild(btn);
+  });
+
+  // Update dot list
+  updateDots();
+}
+
+/* ─── UPDATE DOT LIST ─── */
+function updateDots() {
+  document.querySelectorAll('.q-dot-item').forEach((el, i) => {
+    el.className = 'q-dot-item';
+    if (i < idx)  el.classList.add('answered');
+    if (i === idx) el.classList.add('current');
+    const num = el.querySelector('.q-dot-num');
+    if (num && i < idx) num.textContent = '✓';
+    else if (num) num.textContent = i + 1;
+  });
+
+  // Scroll current into view in sidebar
+  const cur = document.getElementById(`dot-${idx}`);
+  if (cur) cur.scrollIntoView({ block:'nearest', behavior:'smooth' });
+}
+
+/* ─── PICK ANSWER ─── */
+function pick(val, btn) {
+  // Disable all
+  document.querySelectorAll('.ans-btn').forEach(b => b.style.pointerEvents = 'none');
+
+  // Highlight selected
+  btn.classList.add('picking');
+  btn.style.borderColor = 'var(--teal)';
+  btn.style.background  = 'var(--teal-pale)';
+
+  setTimeout(() => {
+    answered.push(val);
+    totalScore += val;
+    idx++;
+
+    if (idx < questions.length) {
+      renderQ();
+    } else {
+      submitAll();
+    }
+  }, 380);
+}
+
+/* ─── SUBMIT ─── */
+async function submitAll() {
+  document.getElementById('loadingOverlay').classList.add('active');
+
+  try {
+    const res = await fetch('http://localhost:5000/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ answers: answered, user: patient })
+    });
+    const data = await res.json();
+    if (!data || !data.score) throw new Error('bad response');
+
+    localStorage.setItem('score',     data.score);
+    localStorage.setItem('result',    data.level);
+    localStorage.setItem('report',    data.report);
+    localStorage.setItem('breakdown', JSON.stringify(data.breakdown || {}));
+    localStorage.setItem('remedies',  JSON.stringify(data.remedies  || []));
+
+  } catch (_) {
+    // Offline fallback
+    const score = answered.reduce((a,b) => a+b, 0);
+    const bd = {
+      cognitive: answered[0]+answered[4]+answered[8]+answered[10],
+      anxiety:   answered[1]+answered[5],
+      emotional: answered[6]+answered[7]+answered[9]+answered[11]+answered[12],
+      sleep:     answered[2]+answered[3]+answered[13],
+    };
+    const w = bd.sleep*1.2 + bd.anxiety*1.5 + bd.emotional*1.4 + bd.cognitive*1.3;
+    const level = w>60||bd.anxiety>=8 ? 'High' : w>35 ? 'Moderate' : 'Low';
+    const REPORTS = {
+      High:     'Elevated stress indicators detected across multiple psychometric dimensions. Patterns suggest heightened cortisol response and sympathetic nervous system activation. Immediate clinical consultation and a structured intervention plan are strongly recommended.',
+      Moderate: 'Moderate stress levels identified with notable patterns in specific dimensions. Structured lifestyle adjustments, mindfulness-based stress reduction (MBSR), and targeted relaxation techniques are advised to prevent further escalation.',
+      Low:      'Low stress levels detected. Your psychometric profile indicates effective coping mechanisms and balanced mental wellness. Continue your current healthy routines and schedule periodic assessments to monitor changes.'
+    };
+    const remedies = buildRemedies(bd);
+    localStorage.setItem('score',     score);
+    localStorage.setItem('result',    level);
+    localStorage.setItem('report',    REPORTS[level]);
+    localStorage.setItem('breakdown', JSON.stringify(bd));
+    localStorage.setItem('remedies',  JSON.stringify(remedies));
+  }
+
+  setTimeout(() => window.location.href = 'result.html', 2200);
+}
+
+function buildRemedies(bd) {
+  const r = [];
+  if (bd.sleep > 5)     r.push({ title:'Sleep Regulation Protocol', icon:'💤', details:['Maintain consistent 7–8 hour sleep schedule','Avoid screens 1 hour before bedtime','Limit caffeine intake after 2:00 PM','Try guided Yoga Nidra or sleep meditation','Keep bedroom cool and at a consistent temperature'] });
+  if (bd.anxiety > 5)   r.push({ title:'Anxiety Management Plan', icon:'🧘', details:['Practise 4-7-8 breathing technique daily','5-minute screen-free morning mindfulness','Decompose goals into small daily milestones','Limit news and social media consumption','Weekly expressive journaling'] });
+  if (bd.emotional > 8) r.push({ title:'Emotional Wellbeing Strategy', icon:'💛', details:['10-minute reflective journaling each evening','Reach out to a trusted person weekly','Curate a calming playlist for difficult moments','Spend 20 minutes in nature daily','Engage in one creative activity per week'] });
+  if (bd.cognitive > 8) r.push({ title:'Cognitive Focus Enhancement', icon:'🧩', details:['Use Pomodoro technique (25-min focused cycles)','Single-task focus — no multitasking','Eisenhower priority matrix every morning','Include Omega-3 and B-vitamin rich foods','Take a 5-min movement break every 90 minutes'] });
+  if (r.length === 0)   r.push({ title:'Wellness Maintenance', icon:'🌿', details:['Maintain 150 min/week of physical activity','Nurture social connections proactively','Practice a weekly digital detox day','Schedule routine preventive health checks','Continue journaling for self-awareness'] });
+  return r;
+}
+</script>
+</body>
+</html>

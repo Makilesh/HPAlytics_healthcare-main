@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HPAlytics— Patient Profile</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Nunito:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+.profile-layout {
+  min-height: calc(100vh - 72px);
+  display: grid;
+  grid-template-columns: 1fr 1.6fr;
+}
+
+/* Left sidebar — context panel */
+.profile-sidebar {
+  background: var(--teal);
+  padding: 56px 48px;
+  display: flex; flex-direction: column; justify-content: center;
+  position: relative; overflow: hidden;
+}
+
+.profile-sidebar::before {
+  content: '';
+  position: absolute; bottom: -80px; right: -80px;
+  width: 320px; height: 320px; border-radius: 50%;
+  background: rgba(255,255,255,0.05);
+}
+.profile-sidebar::after {
+  content: '';
+  position: absolute; top: -40px; left: -40px;
+  width: 200px; height: 200px; border-radius: 50%;
+  background: rgba(255,255,255,0.04);
+}
+
+.sidebar-step {
+  font-family: 'Nunito', sans-serif;
+  font-size: 11px; font-weight: 800;
+  letter-spacing: 2.5px; text-transform: uppercase;
+  color: rgba(255,255,255,0.55); margin-bottom: 14px;
+}
+
+.sidebar-title {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(28px, 3.5vw, 42px);
+  font-weight: 700; line-height: 1.1;
+  letter-spacing: -0.8px; color: #fff;
+  margin-bottom: 20px;
+}
+.sidebar-title em { font-style: italic; color: rgba(255,255,255,0.7); }
+
+.sidebar-body {
+  font-family: 'Nunito', sans-serif;
+  font-size: 15px; line-height: 1.7;
+  color: rgba(255,255,255,0.65); font-weight: 400;
+  margin-bottom: 40px;
+}
+
+/* Progress steps list */
+.step-list { display: flex; flex-direction: column; gap: 0; position: relative; }
+.step-list::before {
+  content: '';
+  position: absolute; left: 14px; top: 14px; bottom: 14px;
+  width: 1px; background: rgba(255,255,255,0.15);
+}
+
+.step-item {
+  display: flex; align-items: center; gap: 14px;
+  padding: 10px 0; position: relative;
+}
+
+.step-dot {
+  width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 800;
+  background: rgba(255,255,255,0.1);
+  color: rgba(255,255,255,0.5);
+  border: 1.5px solid rgba(255,255,255,0.15);
+  position: relative; z-index: 1;
+  transition: all 250ms;
+}
+
+.step-item.done .step-dot   { background: rgba(255,255,255,0.2); color: #fff; border-color: rgba(255,255,255,0.35); }
+.step-item.active .step-dot { background: #fff; color: var(--teal); border-color: #fff; }
+
+.step-text {
+  font-family: 'Nunito', sans-serif;
+  font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.45);
+}
+.step-item.done .step-text   { color: rgba(255,255,255,0.7); }
+.step-item.active .step-text { color: #fff; font-weight: 800; }
+
+/* Assurance strip */
+.assurance-strip {
+  margin-top: 44px; padding: 18px;
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: var(--r-md);
+}
+.assurance-title {
+  font-family: 'Nunito', sans-serif;
+  font-size: 12px; font-weight: 800;
+  letter-spacing: 1.5px; text-transform: uppercase;
+  color: rgba(255,255,255,0.5); margin-bottom: 12px;
+}
+.assurance-items { display: flex; flex-direction: column; gap: 8px; }
+.assurance-item {
+  display: flex; align-items: center; gap: 9px;
+  font-family: 'Nunito', sans-serif;
+  font-size: 13px; font-weight: 500; color: rgba(255,255,255,0.65);
+}
+.assurance-icon { font-size: 15px; }
+
+/* Right — form area */
+.profile-form-area {
+  background: var(--bg-canvas);
+  padding: 56px 64px;
+  overflow-y: auto;
+}
+
+.form-header { margin-bottom: 40px; }
+.form-eyebrow {
+  font-family: 'Nunito', sans-serif;
+  font-size: 11px; font-weight: 800;
+  letter-spacing: 2px; text-transform: uppercase;
+  color: var(--teal-mid); margin-bottom: 8px;
+}
+.form-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 30px; font-weight: 700; color: var(--text-900);
+  letter-spacing: -0.5px;
+}
+.form-subtitle {
+  font-family: 'Nunito', sans-serif;
+  font-size: 14px; color: var(--text-400); font-weight: 400;
+  margin-top: 6px; line-height: 1.5;
+}
+
+/* Form card */
+.form-card {
+  background: var(--bg-white);
+  border: 1px solid var(--border-sm);
+  border-radius: var(--r-xl);
+  box-shadow: var(--shadow-md);
+  padding: 36px;
+}
+
+/* Section labels inside form */
+.form-section-label {
+  font-family: 'Nunito', sans-serif;
+  font-size: 11px; font-weight: 800;
+  letter-spacing: 2px; text-transform: uppercase;
+  color: var(--text-300);
+  margin: 28px 0 14px;
+  display: flex; align-items: center; gap: 10px;
+}
+.form-section-label::before {
+  content: '';
+  flex: 1; height: 1px; background: var(--border-sm);
+}
+
+/* Gender selector */
+.gender-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; }
+.gender-opt {
+  display: flex; flex-direction: column; align-items: center; gap: 7px;
+  padding: 18px 10px;
+  background: var(--bg-warm);
+  border: 2px solid var(--border-sm);
+  border-radius: var(--r-md); cursor: pointer;
+  transition: all 220ms var(--ease);
+  text-align: center;
+}
+.gender-opt:hover { border-color: var(--teal-mid); background: var(--teal-ultra); }
+.gender-opt.selected {
+  border-color: var(--teal); background: var(--teal-pale);
+  box-shadow: 0 4px 16px rgba(27,107,107,0.12);
+}
+.gender-icon { font-size: 22px; }
+.gender-label { font-family: 'Nunito', sans-serif; font-size: 12px; font-weight: 700; color: var(--text-700); }
+
+/* Role selector */
+.role-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; }
+.role-card {
+  padding: 22px 14px;
+  background: var(--bg-warm);
+  border: 2px solid var(--border-sm);
+  border-radius: var(--r-md); cursor: pointer;
+  transition: all 230ms var(--ease-spring);
+  text-align: center;
+}
+.role-card:hover { border-color: var(--teal-mid); background: var(--teal-ultra); transform: translateY(-3px); box-shadow: var(--shadow-md); }
+.role-card.selected {
+  border-color: var(--teal); background: var(--teal-pale);
+  transform: translateY(-3px); box-shadow: 0 8px 28px rgba(27,107,107,0.14);
+}
+.role-emoji { font-size: 30px; margin-bottom: 10px; }
+.role-name { font-family: 'Nunito', sans-serif; font-size: 13px; font-weight: 800; color: var(--text-900); }
+.role-desc { font-family: 'Nunito', sans-serif; font-size: 11px; font-weight: 400; color: var(--text-400); margin-top: 4px; line-height: 1.4; }
+
+@media (max-width: 900px) {
+  .profile-layout { grid-template-columns: 1fr; }
+  .profile-sidebar { padding: 40px 28px; }
+  .profile-form-area { padding: 40px 24px; }
+  .step-list, .step-list::before { display: none; }
+}
+@media (max-width: 600px) {
+  .role-grid { grid-template-columns: 1fr; }
+  .gender-grid { grid-template-columns: repeat(3,1fr); }
+  .form-card { padding: 24px 18px; }
+  .profile-form-area { padding: 24px 16px; }
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="mp-nav">
+  <a href="index.html" class="mp-nav-brand">
+    <div class="nav-mark"><div class="nav-mark-inner">🧠</div></div>
+    <div>
+      <div class="nav-brand-name">HPAlytics</div>
+      <div class="nav-brand-sub">Clinical Platform</div>
+    </div>
+  </a>
+  <div class="nav-steps">
+    <div class="nav-step done"><div class="nav-step-num">✓</div> Entry</div>
+    <div class="nav-sep"></div>
+    <div class="nav-step active"><div class="nav-step-num">2</div> Profile</div>
+    <div class="nav-sep"></div>
+    <div class="nav-step"><div class="nav-step-num">3</div> Assessment</div>
+    <div class="nav-sep"></div>
+    <div class="nav-step"><div class="nav-step-num">4</div> Report</div>
+  </div>
+</nav>
+
+<main class="mp-page">
+  <div class="profile-layout">
+
+    <!-- ── SIDEBAR ── -->
+    <div class="profile-sidebar">
+      <div class="sidebar-step fade-up">Step 2 of 4</div>
+      <h2 class="sidebar-title fade-up-1">Your clinical<br><em>profile</em></h2>
+      <p class="sidebar-body fade-up-2">This information personalises your 15-question psychometric assessment for the most accurate stress profile possible.</p>
+
+      <div class="step-list fade-up-3">
+        <div class="step-item done">
+          <div class="step-dot">✓</div>
+          <div class="step-text">Entry credentials</div>
+        </div>
+        <div class="step-item active">
+          <div class="step-dot">2</div>
+          <div class="step-text">Clinical profile setup</div>
+        </div>
+        <div class="step-item">
+          <div class="step-dot">3</div>
+          <div class="step-text">Psychometric assessment</div>
+        </div>
+        <div class="step-item">
+          <div class="step-dot">4</div>
+          <div class="step-text">Clinical report & remedies</div>
+        </div>
+      </div>
+
+      <div class="assurance-strip fade-up-4">
+        <div class="assurance-title">Data Protection</div>
+        <div class="assurance-items">
+          <div class="assurance-item"><span class="assurance-icon">🔐</span> End-to-end encrypted</div>
+          <div class="assurance-item"><span class="assurance-icon">🚫</span> Never shared with third parties</div>
+          <div class="assurance-item"><span class="assurance-icon">🗑️</span> Delete your data anytime</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── FORM AREA ── -->
+    <div class="profile-form-area">
+      <div class="form-header fade-up">
+        <div class="form-eyebrow">Patient Intake</div>
+        <div class="form-title">Complete Your Profile</div>
+        <div class="form-subtitle">All fields are required to generate your personalised assessment</div>
+      </div>
+
+      <div class="form-card fade-up-1">
+
+        <!-- Personal details -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+          <div class="mp-field">
+            <input type="text" id="name" class="mp-input" placeholder=" " autocomplete="off">
+            <label class="mp-label">Full Name</label>
+          </div>
+          <div class="mp-field">
+            <input type="number" id="age" class="mp-input" placeholder=" " min="5" max="120" autocomplete="off">
+            <label class="mp-label">Age</label>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+          <div class="mp-field">
+            <input type="tel" id="phone" class="mp-input" placeholder=" " autocomplete="off">
+            <label class="mp-label">Phone Number</label>
+          </div>
+          <div class="mp-field">
+            <input type="email" id="email" class="mp-input" placeholder=" " autocomplete="off">
+            <label class="mp-label">Email Address</label>
+          </div>
+        </div>
+
+        <!-- Gender -->
+        <div class="form-section-label">Gender</div>
+        <div class="gender-grid" style="margin-bottom:8px;">
+          <div class="gender-opt" onclick="selectGender(this,'Male')">
+            <div class="gender-icon">♂️</div>
+            <div class="gender-label">Male</div>
+          </div>
+          <div class="gender-opt" onclick="selectGender(this,'Female')">
+            <div class="gender-icon">♀️</div>
+            <div class="gender-label">Female</div>
+          </div>
+          <div class="gender-opt" onclick="selectGender(this,'Other')">
+            <div class="gender-icon">⚧️</div>
+            <div class="gender-label">Other</div>
+          </div>
+        </div>
+        <input type="hidden" id="gender" value="">
+
+        <!-- Role -->
+        <div class="form-section-label">Primary Role</div>
+        <div class="role-grid" style="margin-bottom:8px;">
+          <div class="role-card" onclick="selectRole(this,'student')">
+            <div class="role-emoji">🎓</div>
+            <div class="role-name">Student</div>
+            <div class="role-desc">Academic pressure & study-related stress</div>
+          </div>
+          <div class="role-card" onclick="selectRole(this,'working')">
+            <div class="role-emoji">💼</div>
+            <div class="role-name">Professional</div>
+            <div class="role-desc">Workplace demands & career stress</div>
+          </div>
+          <div class="role-card" onclick="selectRole(this,'home')">
+            <div class="role-emoji">🏠</div>
+            <div class="role-name">Homemaker</div>
+            <div class="role-desc">Household & family responsibilities</div>
+          </div>
+        </div>
+        <input type="hidden" id="role" value="">
+
+        <div style="margin-top:32px;">
+          <button class="btn-primary" onclick="savePatient()">
+            Start Assessment
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </button>
+        </div>
+
+      </div><!-- /form-card -->
+    </div><!-- /profile-form-area -->
+
+  </div>
+</main>
+
+<script>
+window.addEventListener('DOMContentLoaded', () => {
+  const n = localStorage.getItem('mp_name') || '';
+  const e = localStorage.getItem('mp_email') || '';
+  const p = localStorage.getItem('mp_phone') || '';
+  if (n) document.getElementById('name').value  = n;
+  if (e) document.getElementById('email').value = e;
+  if (p) document.getElementById('phone').value = p;
+});
+
+function selectGender(el, val) {
+  document.querySelectorAll('.gender-opt').forEach(x => x.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('gender').value = val;
+}
+
+function selectRole(el, val) {
+  document.querySelectorAll('.role-card').forEach(x => x.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('role').value = val;
+}
+
+function savePatient() {
+  const p = {
+    name:   document.getElementById('name').value.trim(),
+    age:    document.getElementById('age').value.trim(),
+    gender: document.getElementById('gender').value,
+    phone:  document.getElementById('phone').value.trim(),
+    email:  document.getElementById('email').value.trim(),
+    role:   document.getElementById('role').value,
+  };
+  if (!p.name)   return toast('Please enter your full name', 'error');
+  if (!p.age)    return toast('Please enter your age', 'error');
+  if (!p.gender) return toast('Please select your gender', 'error');
+  if (!p.phone)  return toast('Please enter your phone number', 'error');
+  if (!p.email)  return toast('Please enter your email', 'error');
+  if (!p.role)   return toast('Please select your primary role to get personalised questions', 'error');
+
+  localStorage.setItem('patient', JSON.stringify(p));
+  toast('Profile saved! Preparing your assessment…', 'success');
+  setTimeout(() => window.location.href = 'questions.html', 1000);
+}
+
+function toast(msg, type) {
+  const el = document.getElementById('mp-toast') || document.createElement('div');
+  el.id = 'mp-toast';
+  el.innerHTML = (type === 'success' ? '<span>✅</span>' : '<span>⚠️</span>') + msg;
+  el.style.cssText = `color:${type==='success'?'var(--sage)':'var(--blush)'};
+    border:1.5px solid ${type==='success'?'rgba(92,138,107,0.25)':'rgba(196,121,107,0.25)'};`;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 2800);
+}
+</script>
+</body>
+</html>

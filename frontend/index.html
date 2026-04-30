@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HPAlytics — Clinical Stress Assessment</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Nunito:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+
+
+/* ── HERO LAYOUT ── */
+.hero {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+/* LEFT — editorial warm panel */
+.hero-left {
+  background: var(--bg-canvas);
+  padding: 80px 64px;
+  display: flex; flex-direction: column; justify-content: center;
+  position: relative; overflow: hidden;
+}
+
+/* Soft background watermark circle */
+.hero-left::before {
+  content: '';
+  position: absolute; bottom: -120px; left: -120px;
+  width: 480px; height: 480px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(27,107,107,0.07) 0%, transparent 70%);
+  pointer-events: none;
+}
+.hero-left::after {
+  content: '';
+  position: absolute; top: -60px; right: -60px;
+  width: 300px; height: 300px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(92,138,107,0.06) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+/* RIGHT — form panel */
+.hero-right {
+  background: var(--bg-white);
+  border-left: 1px solid var(--border-sm);
+  padding: 80px 64px;
+  display: flex; flex-direction: column; justify-content: center;
+  position: relative;
+}
+
+/* Decorative top accent line */
+.hero-right::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--teal), var(--teal-light), var(--sage));
+}
+
+/* Brand */
+.brand-wrap {
+  display: flex; align-items: center; gap: 14px;
+  margin-bottom: 56px;
+}
+
+.brand-icon {
+  width: 52px; height: 52px;
+  background: linear-gradient(135deg, var(--teal) 0%, var(--teal-mid) 100%);
+  border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px;
+  box-shadow: 0 8px 24px rgba(27,107,107,0.22);
+}
+
+.brand-text {}
+.brand-name {
+  font-family: 'Playfair Display', serif;
+  font-size: 22px; font-weight: 700; color: var(--text-900);
+  letter-spacing: -0.3px; line-height: 1;
+}
+.brand-tag {
+  font-family: 'Nunito', sans-serif;
+  font-size: 10px; font-weight: 800;
+  color: var(--teal-mid); letter-spacing: 2.5px;
+  text-transform: uppercase; margin-top: 3px;
+}
+
+/* Headline */
+.hero-headline {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(36px, 4.5vw, 58px);
+  font-weight: 700; line-height: 1.07;
+  letter-spacing: -1.5px; color: var(--text-900);
+  margin-bottom: 22px;
+}
+.hero-headline em { font-style: italic; color: var(--teal); }
+
+.hero-sub {
+  font-family: 'Nunito', sans-serif;
+  font-size: 16px; line-height: 1.75;
+  color: var(--text-500); font-weight: 400;
+  max-width: 420px; margin-bottom: 48px;
+}
+
+/* Stats */
+.stats-row { display: flex; gap: 36px; margin-bottom: 56px; }
+.stat-item {}
+.stat-num {
+  font-family: 'Playfair Display', serif;
+  font-size: 36px; font-weight: 700; color: var(--teal);
+  line-height: 1;
+}
+.stat-label {
+  font-family: 'Nunito', sans-serif;
+  font-size: 12px; font-weight: 600;
+  color: var(--text-400); letter-spacing: 0.5px;
+  margin-top: 4px;
+}
+
+/* Trust chips */
+.trust-row { display: flex; flex-wrap: wrap; gap: 10px; }
+.trust-chip {
+  display: flex; align-items: center; gap: 7px;
+  padding: 7px 13px; border-radius: 20px;
+  background: var(--bg-warm);
+  border: 1px solid var(--border-sm);
+  font-family: 'Nunito', sans-serif;
+  font-size: 12px; font-weight: 600; color: var(--text-500);
+}
+.trust-chip span { color: var(--teal); font-size: 14px; }
+
+/* Floating evidence card */
+.evidence-card {
+  position: absolute;
+  bottom: 10%; right: -20px;
+  background: var(--bg-white);
+  border: 1px solid var(--border-sm);
+  border-radius: var(--r-md);
+  padding: 16px 20px;
+  box-shadow: var(--shadow-lg);
+  animation: floatUpDown 5s ease-in-out infinite;
+  max-width: 200px;
+}
+@keyframes floatUpDown { 0%,100%{transform:translateY(0);} 50%{transform:translateY(-9px);} }
+
+.evidence-card-val {
+  font-family: 'Playfair Display', serif;
+  font-size: 26px; font-weight: 700; color: var(--teal);
+  line-height: 1;
+}
+.evidence-card-label {
+  font-family: 'Nunito', sans-serif;
+  font-size: 12px; color: var(--text-400); font-weight: 500;
+  margin-top: 4px;
+}
+
+/* Form panel right */
+.form-eyebrow {
+  font-family: 'Nunito', sans-serif;
+  font-size: 11px; font-weight: 800;
+  letter-spacing: 2px; text-transform: uppercase;
+  color: var(--teal-mid); margin-bottom: 10px;
+}
+.form-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 28px; font-weight: 700; color: var(--text-900);
+  letter-spacing: -0.5px; margin-bottom: 6px;
+}
+.form-sub {
+  font-family: 'Nunito', sans-serif;
+  font-size: 14px; color: var(--text-400); font-weight: 400;
+  margin-bottom: 36px; line-height: 1.6;
+}
+
+/* Security note */
+.security-note {
+  display: flex; align-items: center; gap: 8px;
+  margin-top: 20px;
+  padding: 12px 16px;
+  background: var(--teal-ultra);
+  border: 1px solid var(--border-sm);
+  border-radius: var(--r-sm);
+  font-family: 'Nunito', sans-serif;
+  font-size: 12px; font-weight: 600; color: var(--text-400);
+}
+.security-note span { font-size: 15px; }
+
+/* Divider with text */
+.or-divider {
+  display: flex; align-items: center; gap: 14px;
+  margin: 24px 0;
+}
+.or-line { flex: 1; height: 1px; background: var(--border-sm); }
+.or-text {
+  font-family: 'Nunito', sans-serif;
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--text-300);
+}
+
+/* Testimonial */
+.mini-testimonial {
+  margin-top: 28px;
+  padding: 18px 20px;
+  background: var(--bg-canvas);
+  border: 1px solid var(--border-sm);
+  border-radius: var(--r-md);
+  position: relative;
+}
+.mini-testimonial::before {
+  content: '"';
+  position: absolute; top: -10px; left: 16px;
+  font-family: 'Playfair Display', serif;
+  font-size: 48px; color: var(--teal-pale);
+  line-height: 1;
+}
+.testimonial-text {
+  font-family: 'Nunito', sans-serif;
+  font-size: 13px; font-style: italic;
+  color: var(--text-500); line-height: 1.6; font-weight: 400;
+}
+.testimonial-author {
+  font-family: 'Nunito', sans-serif;
+  font-size: 11px; font-weight: 700;
+  color: var(--teal-mid); margin-top: 10px;
+  letter-spacing: 0.5px;
+}
+
+/* ── RESPONSIVE ── */
+@media (max-width: 900px) {
+  .hero { grid-template-columns: 1fr; }
+  .hero-left { padding: 60px 32px 40px; }
+  .hero-right { padding: 40px 32px 60px; border-left: none; border-top: 1px solid var(--border-sm); }
+  .hero-right::before { left: 0; right: 0; }
+  .evidence-card { display: none; }
+}
+</style>
+</head>
+<body>
+
+<div class="hero">
+
+  <!-- ── LEFT PANEL ── -->
+  <div class="hero-left">
+
+    <!-- Brand mark -->
+    <div class="brand-wrap fade-up">
+      <div class="brand-icon">🧠</div>
+      <div class="brand-text">
+        <div class="brand-name">HPAlytics</div>
+        <div class="brand-tag">Clinical AI Platform</div>
+      </div>
+    </div>
+
+    <!-- Headline -->
+    <h1 class="hero-headline fade-up-1">
+      Understand<br>your stress.<br><em>Clinically.</em>
+    </h1>
+
+    <p class="hero-sub fade-up-2">
+      A validated psychometric assessment that maps your stress profile across cognitive, emotional, sleep, and anxiety dimensions — with personalised clinical recommendations.
+    </p>
+
+    <!-- Stats -->
+    <div class="stats-row fade-up-3">
+      <div class="stat-item">
+        <div class="stat-num">15</div>
+        <div class="stat-label">Validated Questions</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num">4</div>
+        <div class="stat-label">Stress Dimensions</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num">3</div>
+        <div class="stat-label">Minutes to Complete</div>
+      </div>
+    </div>
+
+    <!-- Trust chips -->
+    <div class="trust-row fade-up-4">
+      <div class="trust-chip"><span>🔒</span> HIPAA-Aligned</div>
+      <div class="trust-chip"><span>🧬</span> Clinically Validated</div>
+      <div class="trust-chip"><span>📋</span> PDF Report</div>
+      <div class="trust-chip"><span>🎯</span> Role-Based Assessment</div>
+    </div>
+
+  </div>
+
+  <!-- ── RIGHT PANEL — FORM ── -->
+  <div class="hero-right">
+
+    <div class="form-eyebrow fade-up">Step 1 of 4</div>
+    <div class="form-title fade-up-1">Begin Your Assessment</div>
+    <p class="form-sub fade-up-1">Enter your basic details to get started. Your data is private and never shared.</p>
+
+    <div class="fade-up-2">
+      <div class="mp-field">
+        <input type="text" id="name" class="mp-input" placeholder=" " autocomplete="off">
+        <label class="mp-label">Full Name</label>
+      </div>
+
+      <div class="mp-field">
+        <input type="email" id="email" class="mp-input" placeholder=" " autocomplete="off">
+        <label class="mp-label">Email Address</label>
+      </div>
+
+      <div class="mp-field">
+        <input type="tel" id="phone" class="mp-input" placeholder=" " autocomplete="off">
+        <label class="mp-label">Phone Number</label>
+      </div>
+
+      <button class="btn-primary" onclick="login()">
+        Continue to Profile
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </button>
+
+      <div class="security-note fade-up-3">
+        <span>🔐</span>
+        Your information is encrypted and never shared with third parties
+      </div>
+    </div>
+
+    </div>
+
+  </div>
+</div>
+
+<script>
+function login() {
+  const name  = document.getElementById('name').value.trim();
+  const email = document.getElementById('email').value.trim();
+  const phone = document.getElementById('phone').value.trim();
+
+  if (!name)  return toast('Please enter your full name', 'error');
+  if (!email) return toast('Please enter your email address', 'error');
+  if (!phone) return toast('Please enter your phone number', 'error');
+
+  localStorage.setItem('mp_name',  name);
+  localStorage.setItem('mp_email', email);
+  localStorage.setItem('mp_phone', phone);
+
+  toast('Welcome, ' + name.split(' ')[0] + '! Taking you to your profile…', 'success');
+  setTimeout(() => window.location.href = 'profile.html', 900);
+}
+
+function toast(msg, type) {
+  const existing = document.getElementById('mp-toast');
+  if (existing) existing.remove();
+  const el = document.createElement('div');
+  el.id = 'mp-toast';
+  el.innerHTML = (type === 'success' ? '<span>✅</span>' : '<span>⚠️</span>') + msg;
+  el.style.cssText = `color:${type==='success'?'var(--sage)':'var(--blush)'};
+    border:1.5px solid ${type==='success'?'rgba(92,138,107,0.28)':'rgba(196,121,107,0.28)'};`;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 2800);
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
+</script>
+</body>
+</html>
