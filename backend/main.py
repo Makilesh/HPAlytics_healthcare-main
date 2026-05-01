@@ -5,6 +5,10 @@ from typing import List, Optional, Any
 from datetime import datetime
 import os
 import time
+from dotenv import load_dotenv
+
+# Load environment variables from backend/.env (works even when run from repo root)
+load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
 # ── MongoDB via motor (async) ──────────────────────────────────
 try:
