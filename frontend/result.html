@@ -108,8 +108,8 @@
   color: var(--text-300); margin: 20px 0 12px;
 }
 
-/* Patient detail rows */
-.patient-detail-row {
+/* User detail rows */
+.user-detail-row {
   display: flex; align-items: center; gap: 10px;
   padding: 10px 12px;
   background: var(--bg-canvas);
@@ -322,30 +322,30 @@
           <div class="ib-inner" id="reportText">—</div>
         </div>
 
-        <!-- Patient details -->
-        <div class="spb-section-label">Patient</div>
-        <div class="patient-detail-row">
+        <!-- User details -->
+        <div class="spb-section-label">User</div>
+        <div class="user-detail-row">
           <div class="pdr-icon">👤</div>
           <div class="pdr-content">
             <div class="pdr-key">Name</div>
             <div class="pdr-val" id="pName">—</div>
           </div>
         </div>
-        <div class="patient-detail-row">
+        <div class="user-detail-row">
           <div class="pdr-icon">📅</div>
           <div class="pdr-content">
             <div class="pdr-key">Age / Gender</div>
             <div class="pdr-val" id="pAgeGender">—</div>
           </div>
         </div>
-        <div class="patient-detail-row">
+        <div class="user-detail-row">
           <div class="pdr-icon">🏷️</div>
           <div class="pdr-content">
             <div class="pdr-key">Role</div>
             <div class="pdr-val" id="pRole">—</div>
           </div>
         </div>
-        <div class="patient-detail-row">
+        <div class="user-detail-row">
           <div class="pdr-icon">📧</div>
           <div class="pdr-content">
             <div class="pdr-key">Email</div>
@@ -467,7 +467,7 @@ window.addEventListener('DOMContentLoaded', () => {
   let report    = localStorage.getItem('report')          || '—';
   let breakdown = {}; try { breakdown = JSON.parse(localStorage.getItem('breakdown') || '{}'); } catch(e){}
   let remedies  = []; try { remedies  = JSON.parse(localStorage.getItem('remedies')  || '[]'); } catch(e){}
-  let patient   = {}; try { patient   = JSON.parse(localStorage.getItem('patient')   || '{}'); } catch(e){}
+  let user   = {}; try { user   = JSON.parse(localStorage.getItem('user')   || '{}'); } catch(e){}
 
   /* ── Score ring ── */
   const MAX = 75;
@@ -490,11 +490,11 @@ window.addEventListener('DOMContentLoaded', () => {
   /* ── Report text ── */
   document.getElementById('reportText').textContent = report;
 
-  /* ── Patient details ── */
-  document.getElementById('pName').textContent      = patient.name || '—';
-  document.getElementById('pAgeGender').textContent = (patient.age || '—') + ' yrs · ' + (patient.gender || '—');
-  document.getElementById('pRole').textContent      = ROLE_LABELS[patient.role] || patient.role || '—';
-  document.getElementById('pEmail').textContent     = patient.email || '—';
+  /* ── User details ── */
+  document.getElementById('pName').textContent      = user.name || '—';
+  document.getElementById('pAgeGender').textContent = (user.age || '—') + ' yrs · ' + (user.gender || '—');
+  document.getElementById('pRole').textContent      = ROLE_LABELS[user.role] || user.role || '—';
+  document.getElementById('pEmail').textContent     = user.email || '—';
 
   /* ── Stress meter ── */
   const meterEl = document.getElementById('meterFill');
@@ -577,7 +577,7 @@ doc.setDrawColor(180, 200, 200);
 doc.setLineWidth(0.3);
 doc.rect(14, 14, 182, 269);
 
-  let patient   = JSON.parse(localStorage.getItem('patient') || '{}');
+  let user   = JSON.parse(localStorage.getItem('user') || '{}');
   let breakdown = JSON.parse(localStorage.getItem('breakdown') || '{}');
   let remedies  = JSON.parse(localStorage.getItem('remedies') || '[]');
 
@@ -599,23 +599,23 @@ doc.rect(14, 14, 182, 269);
   // ===== PATIENT DETAILS =====
   doc.setFontSize(12);
   doc.setFont("helvetica","bold");
-  doc.text("Patient Information", 20, y);
+  doc.text("User Information", 20, y);
   y += 8;
 
   doc.setFont("helvetica","normal");
   doc.setFontSize(11);
 
   doc.text("Name", 20, y);
-  doc.text(": " + (patient.name || "N/A"), 60, y); y+=6;
+  doc.text(": " + (user.name || "N/A"), 60, y); y+=6;
 
   doc.text("Age", 20, y);
-  doc.text(": " + (patient.age || "N/A"), 60, y); y+=6;
+  doc.text(": " + (user.age || "N/A"), 60, y); y+=6;
 
   doc.text("Gender", 20, y);
-  doc.text(": " + (patient.gender || "N/A"), 60, y); y+=6;
+  doc.text(": " + (user.gender || "N/A"), 60, y); y+=6;
 
   doc.text("Role", 20, y);
-  doc.text(": " + (patient.role || "N/A"), 60, y); y+=10;
+  doc.text(": " + (user.role || "N/A"), 60, y); y+=10;
 
   // ===== RESULT =====
   doc.setFont("helvetica","bold");

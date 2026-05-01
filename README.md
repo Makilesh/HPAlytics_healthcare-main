@@ -67,7 +67,7 @@ The server starts at **`http://localhost:5000`**
 | GET    | `/health`   | Server health & uptime               |
 | POST   | `/submit`   | Submit assessment & get score        |
 | GET    | `/sessions` | View in-memory session logs (debug)  |
-| GET    | `/patients` | Retrieve all patient records         |
+| GET    | `/users` | Retrieve all user records         |
 
 ---
 

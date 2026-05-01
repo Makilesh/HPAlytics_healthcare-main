@@ -14,7 +14,7 @@ function next(){
   window.location.href = "questions.html";
 }
 
-let role = JSON.parse(localStorage.getItem("patient"))?.role;
+let role = JSON.parse(localStorage.getItem("user"))?.role;
 
 let questionsData = {
 
@@ -108,7 +108,7 @@ fetch("https://hpalytics-healthcare.onrender.com/submit"),{
   },
   body: JSON.stringify({
   answers: answers,
-  user: JSON.parse(localStorage.getItem("patient"))
+  user: JSON.parse(localStorage.getItem("user"))
 })
 }
 .then(res => res.json())
@@ -172,7 +172,7 @@ async function downloadPDF(){
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
 
-  let patient = JSON.parse(localStorage.getItem("patient")) || {};
+  let user = JSON.parse(localStorage.getItem("user")) || {};
 
   let score = localStorage.getItem("score") || "0";
   let level = localStorage.getItem("result") || "N/A";
@@ -183,14 +183,14 @@ async function downloadPDF(){
 
   doc.setFontSize(12);
 
-  doc.text("Patient Details:", 20, 40);
+  doc.text("User Details:", 20, 40);
 
-  doc.text("Name: " + (patient.name || "N/A"), 20, 50);
-  doc.text("Age: " + (patient.age || "N/A"), 20, 60);
-  doc.text("Gender: " + (patient.gender || "N/A"), 20, 70);
-  doc.text("Phone: " + (patient.phone || "N/A"), 20, 80);
-  doc.text("Email: " + (patient.email || "N/A"), 20, 90);
-  doc.text("Occupation: " + (patient.role || "N/A"), 20, 100);
+  doc.text("Name: " + (user.name || "N/A"), 20, 50);
+  doc.text("Age: " + (user.age || "N/A"), 20, 60);
+  doc.text("Gender: " + (user.gender || "N/A"), 20, 70);
+  doc.text("Phone: " + (user.phone || "N/A"), 20, 80);
+  doc.text("Email: " + (user.email || "N/A"), 20, 90);
+  doc.text("Occupation: " + (user.role || "N/A"), 20, 100);
 
   doc.text("Assessment Result:", 20, 120);
   doc.text("Stress Level: " + level, 20, 130);
@@ -199,12 +199,12 @@ async function downloadPDF(){
   doc.text("Clinical Interpretation:", 20, 160);
   doc.text(report, 20, 170, { maxWidth: 160 });
 
-  doc.save("Patient_Report.pdf");
+  doc.save("User_Report.pdf");
 }
 
-function savePatient(){
+function saveUser(){
 
-  let patient = {
+  let user = {
     name: document.getElementById("name").value.trim(),
     age: document.getElementById("age").value.trim(),
     gender: document.getElementById("gender").value,
@@ -213,14 +213,14 @@ function savePatient(){
     role: document.getElementById("role").value
   };
 
-  console.log("PATIENT DATA:", patient); // 🔥 debug
+  console.log("PATIENT DATA:", user); // 🔥 debug
 
-  if(!patient.name || !patient.age || !patient.phone || !patient.email){
+  if(!user.name || !user.age || !user.phone || !user.email){
     alert("Fill all details properly da 😏");
     return;
   }
 
-  localStorage.setItem("patient", JSON.stringify(patient));
+  localStorage.setItem("user", JSON.stringify(user));
 
   window.location.href = "questions.html";
 }

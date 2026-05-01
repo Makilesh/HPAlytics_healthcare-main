@@ -12,10 +12,10 @@ try:
     MONGO_URI = os.getenv("MONGO_URI", "")
     mongo_client = AsyncIOMotorClient(MONGO_URI) if MONGO_URI else None
     db = mongo_client["hpalytics"] if mongo_client else None
-    patients_col = db["patients"] if db else None
+    users_col = db["users"] if db else None
 except Exception:
     mongo_client = None
-    patients_col = None
+    users_col = None
 
 # ── App ────────────────────────────────────────────────────────
 app = FastAPI(title="HPAlytics Backend", version="3.0.0")
@@ -161,7 +161,7 @@ async def submit(payload: SubmitPayload):
     remedies  = build_remedies(breakdown)
 
     # ── Persist to MongoDB (if configured) ────────────────────
-    if patients_col is not None:
+    if users_col is not None:
         doc = {
             **(user.model_dump()),
             "answers":   answers,
@@ -172,7 +172,7 @@ async def submit(payload: SubmitPayload):
             "remedies":  remedies,
             "createdAt": datetime.utcnow(),
         }
-        await patients_col.insert_one(doc)
+        await users_col.insert_one(doc)
 
     # ── In-memory session log ──────────────────────────────────
     sessions.append({
@@ -195,11 +195,11 @@ async def submit(payload: SubmitPayload):
 def get_sessions():
     return {"count": len(sessions), "sessions": sessions}
 
-@app.get("/patients")
-async def get_patients():
-    if patients_col is None:
-        return {"error": "MongoDB not configured", "patients": []}
-    cursor = patients_col.find().sort("createdAt", -1)
+@app.get("/users")
+async def get_users():
+    if users_col is None:
+        return {"error": "MongoDB not configured", "users": []}
+    cursor = users_col.find().sort("createdAt", -1)
     data = []
     async for doc in cursor:
         doc["_id"] = str(doc["_id"])

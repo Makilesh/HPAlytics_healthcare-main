@@ -26,7 +26,7 @@
   overflow-y: auto;
 }
 
-.sidebar-patient-card {
+.sidebar-user-card {
   display: flex; align-items: center; gap: 12px;
   padding: 14px 16px;
   background: var(--teal-ultra);
@@ -35,7 +35,7 @@
   margin-bottom: 28px;
 }
 
-.patient-avatar {
+.user-avatar {
   width: 42px; height: 42px; border-radius: 50%;
   background: linear-gradient(135deg, var(--teal), var(--teal-light));
   display: flex; align-items: center; justify-content: center;
@@ -44,11 +44,11 @@
   font-family: 'Playfair Display', serif;
 }
 
-.patient-name {
+.user-name {
   font-family: 'Nunito', sans-serif;
   font-size: 14px; font-weight: 800; color: var(--text-900);
 }
-.patient-role {
+.user-role {
   font-family: 'Nunito', sans-serif;
   font-size: 11px; font-weight: 600; color: var(--teal-mid);
   margin-top: 1px;
@@ -379,12 +379,12 @@
 
     <!-- ── SIDEBAR ── -->
     <aside class="q-sidebar">
-      <!-- Patient card -->
-      <div class="sidebar-patient-card">
-        <div class="patient-avatar" id="patientInitial">?</div>
+      <!-- User card -->
+      <div class="sidebar-user-card">
+        <div class="user-avatar" id="userInitial">?</div>
         <div>
-          <div class="patient-name" id="patientNameSide">Loading…</div>
-          <div class="patient-role" id="patientRoleSide">—</div>
+          <div class="user-name" id="userNameSide">Loading…</div>
+          <div class="user-role" id="userRoleSide">—</div>
         </div>
       </div>
 
@@ -519,7 +519,7 @@ const CAT_CONFIG = {
 const ROLE_LABELS = { student:'Student 🎓', working:'Professional 💼', home:'Homemaker 🏠' };
 
 /* ─── STATE ─── */
-let patient   = {};
+let user   = {};
 let questions = [];
 let idx       = 0;
 let answered  = [];
@@ -527,16 +527,16 @@ let totalScore= 0;
 
 /* ─── INIT ─── */
 window.addEventListener('DOMContentLoaded', () => {
-  try { patient = JSON.parse(localStorage.getItem('patient') || '{}'); } catch(e) {}
+  try { user = JSON.parse(localStorage.getItem('user') || '{}'); } catch(e) {}
 
-  const role = patient.role || 'student';
+  const role = user.role || 'student';
   questions  = QUESTIONS[role] || QUESTIONS.student;
 
-  // Patient info in sidebar
-  const name = patient.name || 'Patient';
-  document.getElementById('patientNameSide').textContent = name;
-  document.getElementById('patientRoleSide').textContent = ROLE_LABELS[role] || role;
-  document.getElementById('patientInitial').textContent  = name.charAt(0).toUpperCase();
+  // User info in sidebar
+  const name = user.name || 'User';
+  document.getElementById('userNameSide').textContent = name;
+  document.getElementById('userRoleSide').textContent = ROLE_LABELS[role] || role;
+  document.getElementById('userInitial').textContent  = name.charAt(0).toUpperCase();
   document.getElementById('maxPossible').textContent     = questions.length * 5;
 
   buildDotList();
@@ -655,7 +655,7 @@ async function submitAll() {
     const res = await fetch('http://localhost:5000/submit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ answers: answered, user: patient })
+      body: JSON.stringify({ answers: answered, user: user })
     });
     const data = await res.json();
     if (!data || !data.score) throw new Error('bad response');
