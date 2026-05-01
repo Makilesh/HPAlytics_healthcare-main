@@ -1,53 +1,86 @@
-# HPAlytics — Python Backend
+# HPAlytics — Clinical Stress Assessment Platform
 
-FastAPI rewrite of the original Express backend.  
-Same API surface, same routes — drop-in replacement.
+Python FastAPI backend for comprehensive mental health stress assessment. Provides psychometric scoring, personalized remedies, and clinical reporting.
 
-## Setup
+---
+
+## Quick Start
+
+### 1. Setup Python Environment
+
+Navigate to the backend directory and create a virtual environment:
 
 ```bash
 cd backend
 python -m venv venv
-source venv/bin/activate      # Windows: venv\Scripts\activate
+```
+
+**Activate the virtual environment:**
+
+- **Windows (PowerShell/CMD):**
+  ```bash
+  venv\Scripts\activate
+  ```
+- **macOS/Linux:**
+  ```bash
+  source venv/bin/activate
+  ```
+
+### 2. Install Dependencies
+
+```bash
 pip install -r requirements.txt
 ```
 
-## Run
+### 3. Configure Environment (Optional)
 
+Create a `.env` file in the `backend/` directory for MongoDB persistence:
+
+```env
+MONGO_URI=mongodb+srv://<username>:<password>@cluster.mongodb.net/hpalytics
+```
+
+> **Note:** Without `MONGO_URI`, the app runs in-memory (sessions lost on restart).
+
+### 4. Run the Server
+
+**Development (with auto-reload):**
 ```bash
-# Development (auto-reload)
 uvicorn main:app --reload --port 5000
+uvicorn backend.main:app --reload --port 5000
+```
 
-# Production
+**Production:**
+```bash
 uvicorn main:app --host 0.0.0.0 --port 5000
 ```
 
-## Environment
+The server starts at **`http://localhost:5000`**
 
-Create a `.env` file (optional — needed only for MongoDB persistence):
+---
 
-```
-MONGO_URI=mongodb+srv://<user>:<pass>@cluster.mongodb.net/hpalytics
-```
+## API Endpoints
 
-Without `MONGO_URI`, the app runs fully in-memory.
+| Method | Path        | Description                          |
+|--------|-------------|--------------------------------------|
+| GET    | `/`         | Welcome message & API status         |
+| GET    | `/health`   | Server health & uptime               |
+| POST   | `/submit`   | Submit assessment & get score        |
+| GET    | `/sessions` | View in-memory session logs (debug)  |
+| GET    | `/patients` | Retrieve all patient records         |
 
-## Endpoints
+---
 
-| Method | Path        | Description                        |
-|--------|-------------|------------------------------------|
-| GET    | /           | Health check / welcome message     |
-| GET    | /health     | Uptime info                        |
-| POST   | /submit     | Submit assessment answers          |
-| GET    | /sessions   | In-memory session log (debug)      |
-| GET    | /patients   | All patients from MongoDB          |
+## Interactive API Documentation
 
-## Interactive docs
+FastAPI auto-generates **Swagger UI** at:  
+🔗 **`http://localhost:5000/docs`**
 
-FastAPI auto-generates Swagger UI at:  
-`http://localhost:5000/docs`
+Also available: **ReDoc** at `http://localhost:5000/redoc`
 
-## Payload — POST /submit
+---
+
+## POST /submit — Request Payload
 
 ```json
 {
@@ -62,3 +95,85 @@ FastAPI auto-generates Swagger UI at:
   }
 }
 ```
+
+**Response:**
+
+```json
+{
+  "score": 45,
+  "level": "Moderate",
+  "report": "Moderate stress levels identified...",
+  "breakdown": {
+    "cognitive": 12,
+    "anxiety": 8,
+    "emotional": 15,
+    "sleep": 10
+  },
+  "remedies": [
+    {
+      "title": "Sleep Regulation Protocol",
+      "icon": "💤",
+      "details": ["Maintain 7-8 hour sleep schedule", "Avoid screens before bed", ...]
+    }
+  ]
+}
+```
+
+---
+
+## Stress Level Classification
+
+| Level     | Score Indicator | Recommendation                          |
+|-----------|-----------------|----------------------------------------|
+| **Low**   | w ≤ 35          | Stable wellness; maintain current habits |
+| **Moderate** | 35 < w ≤ 60  | Lifestyle adjustments recommended       |
+| **High**  | w > 60 or anxiety ≥ 8 | Clinical consultation strongly advised   |
+
+---
+
+## Frontend Integration
+
+The frontend (`/frontend`) connects to this backend:
+
+```javascript
+// Example: Submit assessment from frontend
+const response = await fetch('http://localhost:5000/submit', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    answers: [1, 2, 3, ...],
+    user: { name: 'Jane', email: 'jane@example.com', ... }
+  })
+});
+
+const result = await response.json();
+console.log(result.level, result.remedies);
+```
+
+---
+
+## Troubleshooting
+
+**Port already in use?**
+```bash
+uvicorn main:app --port 8000
+```
+
+**MongoDB connection fails?**
+- Check `MONGO_URI` in `.env`
+- Verify network access in MongoDB Atlas
+- App will still work in-memory mode
+
+**ModuleNotFoundError?**
+```bash
+pip install -r requirements.txt
+```
+
+---
+
+## Tech Stack
+
+- **Framework:** FastAPI
+- **Database:** MongoDB (optional)
+- **ASGI Server:** Uvicorn
+- **Async Driver:** Motor (motor-asyncio)
