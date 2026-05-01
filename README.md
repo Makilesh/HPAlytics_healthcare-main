@@ -177,3 +177,39 @@ pip install -r requirements.txt
 - **Database:** MongoDB (optional)
 - **ASGI Server:** Uvicorn
 - **Async Driver:** Motor (motor-asyncio)
+
+## What's new (recent updates)
+
+- Frontend: Bidirectional question navigation (Previous/Next) with answer preselection, progress, and running score (frontend/questions.html)
+- Frontend: Returning user recognition using localStorage (hp_history) and hp_returning flag; profile pre-fill and returning-user banner (frontend/index.html, frontend/profile.html)
+- Frontend: Stress History graph and session persistence to hp_history in localStorage (frontend/result.html)
+- Frontend: PDF export refactored to use incremental y positioning for maintainability (frontend/result.html)
+- Frontend: Fixed fetch() syntax in frontend/script.js
+- Backend: POST /submit now validates answer values and returns HTTP 422 when any value is outside 1–5 (backend/main.py)
+- Code quality: compute_breakdown() and compute_level() functions consolidated and reused on both frontend and backend.
+
+## LocalStorage keys
+
+- Existing: mp_name, mp_email, mp_phone, user, score, result, report, breakdown, remedies
+- New: hp_history — JSON array of past sessions
+- New flag: hp_returning — 'true'|'false'
+
+## Session object schema (hp_history)
+
+{
+  "date": "ISO 8601 string",
+  "name": string,
+  "email": string,
+  "score": number,
+  "level": "Low" | "Moderate" | "High",
+  "breakdown": { "cognitive": number, "anxiety": number, "emotional": number, "sleep": number }
+}
+
+## Developer notes
+
+- Key frontend files: frontend/questions.html, frontend/result.html, frontend/profile.html, frontend/index.html, frontend/script.js
+- Backend validation enforced in backend/main.py at POST /submit
+- To run locally:
+  1. Start backend: `uvicorn backend.main:app --reload --port 5000`
+  2. Open `frontend/index.html` in a browser, or serve `/frontend` with a static server (e.g., `python -m http.server`)
+- No new external dependencies were added. jsPDF is included for PDF export on the result page.

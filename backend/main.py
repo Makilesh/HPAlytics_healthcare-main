@@ -150,6 +150,8 @@ def health():
 async def submit(payload: SubmitPayload):
     if not payload.answers:
         raise HTTPException(status_code=400, detail="No answers provided")
+    if any((not isinstance(v, int)) or v < 1 or v > 5 for v in payload.answers):
+        raise HTTPException(status_code=422, detail="All answer values must be integers between 1 and 5")
 
     answers   = payload.answers
     user      = payload.user or UserInfo()

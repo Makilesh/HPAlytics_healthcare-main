@@ -432,6 +432,10 @@
 
         <!-- Answer buttons -->
         <div class="answer-row" id="answerRow"></div>
+        <div id="navRow" style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;">
+          <button id="prevBtn" class="btn-secondary" style="height:40px;padding:0 16px;display:none;" onclick="goPrev()">← Previous</button>
+          <button id="nextBtn" class="btn-secondary" style="height:40px;padding:0 16px;display:none;" onclick="goNext()">Next →</button>
+        </div>
       </div>
 
       <!-- Frequency hint -->
@@ -517,6 +521,26 @@ const CAT_CONFIG = {
 };
 
 const ROLE_LABELS = { student:'Student 🎓', working:'Professional 💼', home:'Homemaker 🏠' };
+const REPORTS = {
+  High:     'Elevated stress indicators detected across multiple psychometric dimensions. Patterns suggest heightened cortisol response and sympathetic nervous system activation. Immediate clinical consultation and a structured intervention plan are strongly recommended.',
+  Moderate: 'Moderate stress levels identified with notable patterns in specific dimensions. Structured lifestyle adjustments, mindfulness-based stress reduction (MBSR), and targeted relaxation techniques are advised to prevent further escalation.',
+  Low:      'Low stress levels detected. Your psychometric profile indicates effective coping mechanisms and balanced mental wellness. Continue your current healthy routines and schedule periodic assessments to monitor changes.'
+};
+
+function compute_breakdown(answers) {
+  const a = answers;
+  return {
+    cognitive: (a[0] || 0) + (a[4] || 0) + (a[8] || 0) + (a[10] || 0),
+    anxiety:   (a[1] || 0) + (a[5] || 0),
+    emotional: (a[6] || 0) + (a[7] || 0) + (a[9] || 0) + (a[11] || 0) + (a[12] || 0),
+    sleep:     (a[2] || 0) + (a[3] || 0) + (a[13] || 0),
+  };
+}
+
+function compute_level(bd) {
+  const w = bd.sleep * 1.2 + bd.anxiety * 1.5 + bd.emotional * 1.4 + bd.cognitive * 1.3;
+  return (w > 60 || bd.anxiety >= 8) ? 'High' : (w > 35 ? 'Moderate' : 'Low');
+}
 
 /* ─── STATE ─── */
 let user   = {};
@@ -560,6 +584,11 @@ function buildDotList() {
 
 /* ─── RENDER QUESTION ─── */
 function renderQ() {
+  if (idx >= questions.length) {
+    submitAll();
+    return;
+  }
+
   const q   = questions[idx];
   const cat = CAT_CONFIG[q.cat] || CAT_CONFIG.cognitive;
   const pct = Math.round((idx / questions.length) * 100);
@@ -593,6 +622,7 @@ function renderQ() {
   // Answers
   const row = document.getElementById('answerRow');
   row.innerHTML = '';
+  const selectedVal = answered[idx];
   ANSWERS.forEach(a => {
     const btn = document.createElement('button');
     btn.className = `ans-btn ${a.cls}`;
@@ -601,8 +631,14 @@ function renderQ() {
       <div class="ans-label">${a.label}</div>
       <div class="ans-score-tag">Score ${a.val}</div>`;
     btn.onclick = () => pick(a.val, btn);
+    if (selectedVal === a.val) {
+      btn.style.borderColor = 'var(--teal)';
+      btn.style.background  = 'var(--teal-pale)';
+    }
     row.appendChild(btn);
   });
+
+  updateNavButtons();
 
   // Update dot list
   updateDots();
@@ -612,16 +648,47 @@ function renderQ() {
 function updateDots() {
   document.querySelectorAll('.q-dot-item').forEach((el, i) => {
     el.className = 'q-dot-item';
-    if (i < idx)  el.classList.add('answered');
+    if (answered[i] !== undefined) el.classList.add('answered');
     if (i === idx) el.classList.add('current');
     const num = el.querySelector('.q-dot-num');
-    if (num && i < idx) num.textContent = '✓';
+    if (num && answered[i] !== undefined) num.textContent = '✓';
     else if (num) num.textContent = i + 1;
   });
 
   // Scroll current into view in sidebar
   const cur = document.getElementById(`dot-${idx}`);
   if (cur) cur.scrollIntoView({ block:'nearest', behavior:'smooth' });
+}
+
+function updateNavButtons() {
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  if (!prevBtn || !nextBtn) return;
+
+  prevBtn.style.display = idx === 0 ? 'none' : 'inline-flex';
+  nextBtn.style.display = answered[idx] !== undefined ? 'inline-flex' : 'none';
+  nextBtn.disabled = answered[idx] === undefined;
+}
+
+function recomputeTotalScore() {
+  totalScore = answered.reduce((sum, val) => sum + (val || 0), 0);
+  document.getElementById('runningScore').textContent = totalScore;
+}
+
+function goPrev() {
+  if (idx === 0) return;
+  idx--;
+  renderQ();
+}
+
+function goNext() {
+  if (answered[idx] === undefined) return;
+  idx++;
+  if (idx === questions.length) {
+    submitAll();
+    return;
+  }
+  renderQ();
 }
 
 /* ─── PICK ANSWER ─── */
@@ -635,8 +702,8 @@ function pick(val, btn) {
   btn.style.background  = 'var(--teal-pale)';
 
   setTimeout(() => {
-    answered.push(val);
-    totalScore += val;
+    answered[idx] = val;
+    recomputeTotalScore();
     idx++;
 
     if (idx < questions.length) {
@@ -650,6 +717,9 @@ function pick(val, btn) {
 /* ─── SUBMIT ─── */
 async function submitAll() {
   document.getElementById('loadingOverlay').classList.add('active');
+  const score = answered.reduce((a,b) => a+b, 0);
+  const bd = compute_breakdown(answered);
+  const level = compute_level(bd);
 
   try {
     const res = await fetch('http://localhost:5000/submit', {
@@ -660,28 +730,14 @@ async function submitAll() {
     const data = await res.json();
     if (!data || !data.score) throw new Error('bad response');
 
-    localStorage.setItem('score',     data.score);
-    localStorage.setItem('result',    data.level);
-    localStorage.setItem('report',    data.report);
-    localStorage.setItem('breakdown', JSON.stringify(data.breakdown || {}));
+    localStorage.setItem('score',     data.score ?? score);
+    localStorage.setItem('result',    data.level || level);
+    localStorage.setItem('report',    data.report || REPORTS[level]);
+    localStorage.setItem('breakdown', JSON.stringify(data.breakdown || bd));
     localStorage.setItem('remedies',  JSON.stringify(data.remedies  || []));
 
   } catch (_) {
     // Offline fallback
-    const score = answered.reduce((a,b) => a+b, 0);
-    const bd = {
-      cognitive: answered[0]+answered[4]+answered[8]+answered[10],
-      anxiety:   answered[1]+answered[5],
-      emotional: answered[6]+answered[7]+answered[9]+answered[11]+answered[12],
-      sleep:     answered[2]+answered[3]+answered[13],
-    };
-    const w = bd.sleep*1.2 + bd.anxiety*1.5 + bd.emotional*1.4 + bd.cognitive*1.3;
-    const level = w>60||bd.anxiety>=8 ? 'High' : w>35 ? 'Moderate' : 'Low';
-    const REPORTS = {
-      High:     'Elevated stress indicators detected across multiple psychometric dimensions. Patterns suggest heightened cortisol response and sympathetic nervous system activation. Immediate clinical consultation and a structured intervention plan are strongly recommended.',
-      Moderate: 'Moderate stress levels identified with notable patterns in specific dimensions. Structured lifestyle adjustments, mindfulness-based stress reduction (MBSR), and targeted relaxation techniques are advised to prevent further escalation.',
-      Low:      'Low stress levels detected. Your psychometric profile indicates effective coping mechanisms and balanced mental wellness. Continue your current healthy routines and schedule periodic assessments to monitor changes.'
-    };
     const remedies = buildRemedies(bd);
     localStorage.setItem('score',     score);
     localStorage.setItem('result',    level);

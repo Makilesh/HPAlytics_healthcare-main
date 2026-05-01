@@ -275,6 +275,10 @@
 
     <!-- ── FORM AREA ── -->
     <div class="profile-form-area">
+      <div id="returningBanner" style="display:none;align-items:flex-start;justify-content:space-between;gap:12px;background:var(--teal-ultra);border:1px solid var(--border-sm);border-radius:var(--r-md);padding:12px 16px;font-family:'Nunito',sans-serif;font-size:13px;color:var(--teal-mid);margin-bottom:14px;">
+        <div>Welcome back! Your previous profile has been loaded. You can update any fields before starting.</div>
+        <button type="button" id="dismissReturningBanner" style="border:none;background:transparent;color:var(--teal-mid);font-size:18px;line-height:1;cursor:pointer;padding:0;">×</button>
+      </div>
       <div class="form-header fade-up">
         <div class="form-eyebrow">User Intake</div>
         <div class="form-title">Complete Your Profile</div>
@@ -366,6 +370,29 @@ window.addEventListener('DOMContentLoaded', () => {
   if (n) document.getElementById('name').value  = n;
   if (e) document.getElementById('email').value = e;
   if (p) document.getElementById('phone').value = p;
+
+  const banner = document.getElementById('returningBanner');
+  const dismiss = document.getElementById('dismissReturningBanner');
+  if (dismiss) dismiss.addEventListener('click', () => { if (banner) banner.style.display = 'none'; });
+
+  if (localStorage.getItem('hp_returning') === 'true') {
+    let history = [];
+    try { history = JSON.parse(localStorage.getItem('hp_history') || '[]'); } catch (_) {}
+    const email = (e || '').toLowerCase();
+    const matches = history.filter(entry => (entry.email || '').toLowerCase() === email);
+    const lastMatch = matches.length ? matches[matches.length - 1] : null;
+
+    let savedUser = {};
+    try { savedUser = JSON.parse(localStorage.getItem('user') || '{}'); } catch (_) {}
+    const sameUser = (savedUser.email || '').toLowerCase() === email ? savedUser : {};
+    const genderVal = (lastMatch && lastMatch.gender) || sameUser.gender || '';
+    const roleVal = (lastMatch && lastMatch.role) || sameUser.role || '';
+
+    preselectGender(genderVal);
+    preselectRole(roleVal);
+
+    if (banner) banner.style.display = 'flex';
+  }
 });
 
 function selectGender(el, val) {
@@ -378,6 +405,24 @@ function selectRole(el, val) {
   document.querySelectorAll('.role-card').forEach(x => x.classList.remove('selected'));
   el.classList.add('selected');
   document.getElementById('role').value = val;
+}
+
+function preselectGender(val) {
+  if (!val) return;
+  const option = Array.from(document.querySelectorAll('.gender-opt')).find(el => {
+    const label = el.querySelector('.gender-label');
+    return label && label.textContent.trim().toLowerCase() === String(val).toLowerCase();
+  });
+  if (option) selectGender(option, val);
+}
+
+function preselectRole(val) {
+  if (!val) return;
+  const option = Array.from(document.querySelectorAll('.role-card')).find(el => {
+    const cardValue = (el.getAttribute('onclick') || '').match(/'([^']+)'/);
+    return cardValue && cardValue[1].toLowerCase() === String(val).toLowerCase();
+  });
+  if (option) selectRole(option, val);
 }
 
 function saveUser() {

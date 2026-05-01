@@ -101,7 +101,7 @@ function answer(val){
 
 function calc(){
 
-fetch("https://hpalytics-healthcare.onrender.com/submit"),{
+fetch("https://hpalytics-healthcare.onrender.com/submit",{
   method:"POST",
   headers:{
     "Content-Type":"application/json"
@@ -110,7 +110,7 @@ fetch("https://hpalytics-healthcare.onrender.com/submit"),{
   answers: answers,
   user: JSON.parse(localStorage.getItem("user"))
 })
-}
+})
 .then(res => res.json())
 .then(data => {
 

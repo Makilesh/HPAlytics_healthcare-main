@@ -555,10 +555,117 @@ window.addEventListener('DOMContentLoaded', () => {
     el.innerHTML = `<span class="micro-icon">${h.icon}</span>${h.text}`;
     mg.appendChild(el);
   });
+
+  const safeBreakdown = {
+    cognitive: Number(breakdown.cognitive) || 0,
+    anxiety: Number(breakdown.anxiety) || 0,
+    emotional: Number(breakdown.emotional) || 0,
+    sleep: Number(breakdown.sleep) || 0,
+  };
+  const safeLevel = ['Low', 'Moderate', 'High'].includes(level) ? level : 'Low';
+  let history = [];
+  try { history = JSON.parse(localStorage.getItem('hp_history') || '[]'); } catch (_) {}
+
+  history.push({
+    date: new Date().toISOString(),
+    name: user.name || '',
+    email: user.email || '',
+    score: Number(score) || 0,
+    level: safeLevel,
+    breakdown: safeBreakdown
+  });
+  localStorage.setItem('hp_history', JSON.stringify(history));
+
+  const currentEmail = (user.email || '').toLowerCase();
+  const userHistory = history
+    .filter(entry => (entry.email || '').toLowerCase() === currentEmail)
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+  if (currentEmail && userHistory.length >= 2) {
+    renderStressHistorySection(userHistory);
+  }
 });
 
 function toggleRemedy(head) {
   head.closest('.remedy-wrap').classList.toggle('open');
+}
+
+function formatHistoryDate(iso) {
+  const d = new Date(iso);
+  const dd = String(d.getDate()).padStart(2, '0');
+  const m = d.toLocaleString('en-GB', { month: 'short' });
+  return `${dd} ${m}`;
+}
+
+function historyLevelColor(score) {
+  if (score > 60) return '#C4796B';
+  if (score > 35) return '#C4952A';
+  return '#5C8A6B';
+}
+
+function renderStressHistorySection(userHistory) {
+  const rightCol = document.querySelector('.right-col');
+  const disclaimer = rightCol ? rightCol.querySelector('.disclaimer') : null;
+  if (!rightCol || !disclaimer) return;
+
+  const existing = document.getElementById('stressHistorySection');
+  if (existing) existing.remove();
+
+  const vbW = 600;
+  const vbH = 200;
+  const left = 48;
+  const right = 20;
+  const top = 16;
+  const bottom = 32;
+  const plotW = vbW - left - right;
+  const plotH = vbH - top - bottom;
+  const toY = (score) => top + plotH - (Math.max(0, Math.min(75, score)) / 75) * plotH;
+  const step = userHistory.length > 1 ? plotW / (userHistory.length - 1) : 0;
+
+  const points = userHistory.map((entry, i) => ({
+    x: left + (i * step),
+    y: toY(Number(entry.score) || 0),
+    score: Number(entry.score) || 0,
+    date: formatHistoryDate(entry.date),
+    color: historyLevelColor(Number(entry.score) || 0),
+  }));
+
+  const polyline = points.map(p => `${p.x},${p.y}`).join(' ');
+  const y35 = toY(35);
+  const y60 = toY(60);
+  const latest = points[points.length - 1];
+
+  const section = document.createElement('div');
+  section.id = 'stressHistorySection';
+  section.className = 'result-section';
+  section.innerHTML = `
+    <div class="rs-header">
+      <div class="rs-header-icon">📈</div>
+      <div>
+        <div class="rs-header-title">Stress History</div>
+        <div class="rs-header-sub">Your stress trend across all assessments</div>
+      </div>
+    </div>
+    <svg width="100%" height="220px" viewBox="0 0 600 200" style="display:block;">
+      <line x1="${left}" y1="${y35}" x2="${vbW-right}" y2="${y35}" stroke="#C4952A" stroke-width="1.4" stroke-dasharray="6 5"></line>
+      <line x1="${left}" y1="${y60}" x2="${vbW-right}" y2="${y60}" stroke="#C4796B" stroke-width="1.4" stroke-dasharray="6 5"></line>
+      <polyline points="${polyline}" fill="none" stroke="#1B6B6B" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></polyline>
+      ${points.map(p => `<circle cx="${p.x}" cy="${p.y}" r="4.4" fill="${p.color}"></circle>`).join('')}
+      <text x="${latest.x + 10}" y="${latest.y - 8}" font-family="Nunito, sans-serif" font-size="12" font-weight="800" fill="#1B6B6B">${latest.score}</text>
+      ${points.map(p => `<text x="${p.x}" y="${vbH - 10}" text-anchor="middle" font-family="Nunito, sans-serif" font-size="10" fill="#7A8A98">${p.date}</text>`).join('')}
+      <text x="8" y="${toY(75) + 4}" font-family="Nunito, sans-serif" font-size="10" fill="#7A8A98">75</text>
+      <text x="14" y="${toY(35) + 4}" font-family="Nunito, sans-serif" font-size="10" fill="#7A8A98">35</text>
+      <text x="14" y="${toY(60) + 4}" font-family="Nunito, sans-serif" font-size="10" fill="#7A8A98">60</text>
+      <text x="16" y="${vbH - bottom + 4}" font-family="Nunito, sans-serif" font-size="10" fill="#7A8A98">0</text>
+    </svg>
+    <div style="display:flex;gap:14px;align-items:center;font-family:'Nunito',sans-serif;font-size:12px;color:var(--text-500);margin-top:10px;">
+      <span style="display:inline-flex;align-items:center;gap:6px;"><span style="width:8px;height:8px;border-radius:50%;background:#5C8A6B;display:inline-block;"></span>Low</span>
+      <span style="display:inline-flex;align-items:center;gap:6px;"><span style="width:8px;height:8px;border-radius:50%;background:#C4952A;display:inline-block;"></span>Moderate</span>
+      <span style="display:inline-flex;align-items:center;gap:6px;"><span style="width:8px;height:8px;border-radius:50%;background:#C4796B;display:inline-block;"></span>High</span>
+    </div>
+  `;
+
+  rightCol.insertBefore(section, disclaimer);
 }
 
 /* ── PDF EXPORT ── */
@@ -605,69 +712,66 @@ doc.rect(14, 14, 182, 269);
   doc.setFont("helvetica","normal");
   doc.setFontSize(11);
 
-  doc.text("Name", 20, y);
-  doc.text(": " + (user.name || "N/A"), 60, y); y+=6;
+  const lineHeight = 6;
+  const blockGap = 8;
+  const sectionGap = 10;
+  const writeField = (label, value, gap = lineHeight) => {
+    doc.text(label, 20, y);
+    doc.text(": " + value, 60, y);
+    y += gap;
+  };
 
-  doc.text("Age", 20, y);
-  doc.text(": " + (user.age || "N/A"), 60, y); y+=6;
-
-  doc.text("Gender", 20, y);
-  doc.text(": " + (user.gender || "N/A"), 60, y); y+=6;
-
-  doc.text("Role", 20, y);
-  doc.text(": " + (user.role || "N/A"), 60, y); y+=10;
+  writeField("Name", user.name || "N/A");
+  writeField("Age", user.age || "N/A");
+  writeField("Gender", user.gender || "N/A");
+  writeField("Role", user.role || "N/A", sectionGap);
 
   // ===== RESULT =====
   doc.setFont("helvetica","bold");
   doc.text("Assessment Result", 20, y);
-  y+=8;
+  y += blockGap;
 
   doc.setFont("helvetica","normal");
 
-  doc.text("Stress Level", 20, y);
-  doc.text(": " + level, 60, y); y+=6;
-
-  doc.text("Score", 20, y);
-  doc.text(": " + score + " / 75", 60, y); y+=10;
+  writeField("Stress Level", level);
+  writeField("Score", score + " / 75", sectionGap);
 
   // ===== INTERPRETATION =====
   doc.setFont("helvetica","bold");
   doc.text("Clinical Interpretation", 20, y);
-  y+=8;
+  y += blockGap;
 
   doc.setFont("helvetica","normal");
 
   let lines = doc.splitTextToSize(report, 170);
   doc.text(lines, 20, y);
-  y += lines.length * 6 + 8;
+  y += lines.length * lineHeight + blockGap;
 
   // ===== BREAKDOWN =====
   doc.setFont("helvetica","bold");
   doc.text("Stress Breakdown", 20, y);
-  y+=8;
+  y += blockGap;
 
   doc.setFont("helvetica","normal");
 
   const format = (t)=>t.charAt(0).toUpperCase()+t.slice(1);
 
   Object.entries(breakdown).forEach(([k,v])=>{
-    doc.text(format(k), 20, y);
-    doc.text(": " + v, 60, y);
-    y+=6;
+    writeField(format(k), String(v));
   });
 
-  y+=8;
+  y += blockGap;
 
   // ===== REMEDIES =====
   doc.setFont("helvetica","bold");
   doc.text("Recommended Plan", 20, y);
-  y+=8;
+  y += blockGap;
 
   doc.setFont("helvetica","normal");
 
   remedies.slice(0,3).forEach(r=>{
     doc.text("• " + r.title, 20, y);
-    y+=6;
+    y += lineHeight;
   });
 
   // ===== FOOTER =====

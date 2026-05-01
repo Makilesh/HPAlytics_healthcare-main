@@ -328,6 +328,10 @@
 </div>
 
 <script>
+window.addEventListener('DOMContentLoaded', () => {
+  try { JSON.parse(localStorage.getItem('hp_history') || '[]'); } catch (_) {}
+});
+
 function login() {
   const name  = document.getElementById('name').value.trim();
   const email = document.getElementById('email').value.trim();
@@ -341,7 +345,23 @@ function login() {
   localStorage.setItem('mp_email', email);
   localStorage.setItem('mp_phone', phone);
 
-  toast('Welcome, ' + name.split(' ')[0] + '! Taking you to your profile…', 'success');
+  let history = [];
+  try { history = JSON.parse(localStorage.getItem('hp_history') || '[]'); } catch (_) {}
+  const emailLc = email.toLowerCase();
+  const match = history.find(entry => (entry.email || '').toLowerCase() === emailLc);
+
+  if (match) {
+    const firstName = (match.name || name).split(' ')[0] || 'User';
+    localStorage.setItem('mp_name',  match.name || name);
+    localStorage.setItem('mp_email', match.email || email);
+    localStorage.setItem('mp_phone', match.phone || phone);
+    localStorage.setItem('hp_returning', 'true');
+    toast('Welcome back, ' + firstName + '! Loading your previous data…', 'success');
+  } else {
+    localStorage.setItem('hp_returning', 'false');
+    toast('Welcome, ' + name.split(' ')[0] + '! Taking you to your profile…', 'success');
+  }
+
   setTimeout(() => window.location.href = 'profile.html', 900);
 }
 
