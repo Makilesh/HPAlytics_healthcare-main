@@ -101,7 +101,7 @@ function answer(val){
 
 function calc(){
 
-fetch("https://hpalytics-healthcare.onrender.com/submit",{
+fetch("http://localhost:5000/submit",{
   method:"POST",
   headers:{
     "Content-Type":"application/json"
