@@ -48,3 +48,6 @@ ehthumbs.db
 # Optional lockfiles (uncomment to ignore)
 # package-lock.json
 # yarn.lock
+
+
+.venv/
