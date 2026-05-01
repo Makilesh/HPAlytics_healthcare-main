@@ -359,13 +359,14 @@
     <div class="nav-sep"></div>
     <div class="nav-step"><div class="nav-step-num">4</div> Report</div>
   </div>
+  <div id="authNavSlot"></div>
 </nav>
 
 <!-- Loading overlay -->
 <div class="loading-overlay" id="loadingOverlay">
   <div class="loading-brain-wrap">🧠</div>
-  <div class="loading-title">Analysing your responses…</div>
-  <div class="loading-sub">Clinical AI is computing your stress profile</div>
+  <div class="loading-title" id="loadingTitle">Analysing your responses…</div>
+  <div class="loading-sub" id="loadingSub">Clinical AI is computing your stress profile</div>
   <div class="loading-bar-wrap"><div class="loading-bar-fill"></div></div>
   <div class="loading-dots">
     <div class="loading-dot"></div>
@@ -419,6 +420,13 @@
         </div>
       </div>
 
+      <div id="round2Info" style="display:none;margin-bottom:18px;padding:14px 16px;border:1px solid rgba(196,149,42,0.35);background:var(--amber-pale);border-radius:var(--r-md);">
+        <div style="font-family:'Nunito',sans-serif;font-size:11px;font-weight:800;letter-spacing:1.8px;text-transform:uppercase;color:var(--amber);">Personalised Follow-up Questions</div>
+        <div style="margin-top:6px;font-family:'Nunito',sans-serif;font-size:13px;color:#926f1f;">
+          Based on your responses, we've prepared targeted follow-up questions to sharpen your stress profile.
+        </div>
+      </div>
+
       <!-- Question card -->
       <div class="q-card" id="qCard">
         <!-- Category tag -->
@@ -450,6 +458,11 @@
 </main>
 
 <script>
+const APP_KEYS = [
+  'logged_in_email', 'mp_name', 'mp_email', 'mp_phone', 'user',
+  'score', 'result', 'report', 'breakdown', 'remedies', 'hp_history', 'hp_returning'
+];
+
 /* ─── DATA ─── */
 const QUESTIONS = {
   student: [
@@ -542,36 +555,71 @@ function compute_level(bd) {
   return (w > 60 || bd.anxiety >= 8) ? 'High' : (w > 35 ? 'Moderate' : 'Low');
 }
 
-/* ─── STATE ─── */
-let user   = {};
-let questions = [];
-let idx       = 0;
-let answered  = [];
-let totalScore= 0;
+const FALLBACK_R2 = [
+  { q: "How often do your main stress triggers appear unexpectedly during your day?", cat: "anxiety" },
+  { q: "How often do unfinished tasks keep returning to your mind?", cat: "cognitive" },
+  { q: "How often do you feel emotionally exhausted before the day ends?", cat: "emotional" },
+  { q: "How often does stress delay your sleep onset?", cat: "sleep" },
+  { q: "How often do you feel supported when stress increases?", cat: "emotional" }
+];
 
-/* ─── INIT ─── */
+/* ─── STATE ─── */
+let user = {};
+let round = 1;
+let questionsR1 = [];
+let questionsR2 = [];
+let currentQuestions = [];
+let idx = 0;
+let answersR1 = [];
+let answersR2 = [];
+let totalScore = 0;
+
 window.addEventListener('DOMContentLoaded', () => {
-  try { user = JSON.parse(localStorage.getItem('user') || '{}'); } catch(e) {}
+  const loggedEmail = localStorage.getItem('logged_in_email');
+  if (!loggedEmail) {
+    window.location.href = 'auth.html';
+    return;
+  }
+
+  try { user = JSON.parse(localStorage.getItem('user') || '{}'); } catch (_) {}
+  if (!user.email) user.email = loggedEmail;
 
   const role = user.role || 'student';
-  questions  = QUESTIONS[role] || QUESTIONS.student;
+  questionsR1 = QUESTIONS[role] || QUESTIONS.student;
+  currentQuestions = questionsR1;
 
-  // User info in sidebar
+  renderNavAuth();
   const name = user.name || 'User';
   document.getElementById('userNameSide').textContent = name;
   document.getElementById('userRoleSide').textContent = ROLE_LABELS[role] || role;
-  document.getElementById('userInitial').textContent  = name.charAt(0).toUpperCase();
-  document.getElementById('maxPossible').textContent     = questions.length * 5;
+  document.getElementById('userInitial').textContent = name.charAt(0).toUpperCase();
+  document.getElementById('maxPossible').textContent = currentQuestions.length * 5;
 
   buildDotList();
   renderQ();
 });
 
+function renderNavAuth() {
+  const firstName = (user.name || 'User').split(' ')[0];
+  const slot = document.getElementById('authNavSlot');
+  slot.innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span style="font-family:'Nunito',sans-serif;font-size:12px;font-weight:800;color:var(--teal);">${firstName}</span>
+      <button class="btn-secondary" style="width:auto;padding:10px 14px;" onclick="logout()">Logout</button>
+    </div>
+  `;
+}
+
+function logout() {
+  APP_KEYS.forEach((key) => localStorage.removeItem(key));
+  window.location.href = 'auth.html';
+}
+
 /* ─── BUILD DOT LIST ─── */
 function buildDotList() {
   const list = document.getElementById('dotList');
   list.innerHTML = '';
-  questions.forEach((q, i) => {
+  currentQuestions.forEach((q, i) => {
     const div = document.createElement('div');
     div.className = 'q-dot-item' + (i === 0 ? ' current' : '');
     div.id = `dot-${i}`;
@@ -584,34 +632,50 @@ function buildDotList() {
 
 /* ─── RENDER QUESTION ─── */
 function renderQ() {
-  if (idx >= questions.length) {
+  if (idx >= currentQuestions.length) {
+    if (round === 1) {
+      startRound2();
+      return;
+    }
     submitAll();
     return;
   }
 
-  const q   = questions[idx];
+  const q = currentQuestions[idx];
   const cat = CAT_CONFIG[q.cat] || CAT_CONFIG.cognitive;
-  const pct = Math.round((idx / questions.length) * 100);
+  const pct = Math.round((idx / currentQuestions.length) * 100);
+  const isRound2 = round === 2;
 
   // Progress
   document.getElementById('progressFill').style.width = pct + '%';
-  document.getElementById('progressText').textContent = `Question ${idx+1} of ${questions.length}`;
+  document.getElementById('progressText').textContent = isRound2
+    ? `Follow-up ${idx + 1} of ${currentQuestions.length}`
+    : `Question ${idx + 1} of ${currentQuestions.length}`;
   document.getElementById('progressPct').textContent  = pct + '%';
-  document.getElementById('remainChip').textContent   = (questions.length - idx) + ' remaining';
-  document.getElementById('domainChip').textContent   = cat.icon + ' ' + cat.label;
+  document.getElementById('remainChip').textContent   = (currentQuestions.length - idx) + ' remaining';
+  document.getElementById('domainChip').textContent = isRound2
+    ? '🧠 Personalised Round 2'
+    : (cat.icon + ' ' + cat.label);
   document.getElementById('runningScore').textContent = totalScore;
+  document.getElementById('round2Info').style.display = isRound2 ? 'block' : 'none';
 
   // Cat tag
   const tag = document.getElementById('catTag');
-  tag.textContent = cat.icon + '  ' + cat.label + ' Domain';
+  tag.textContent = isRound2
+    ? '🧠  Personalised Follow-up'
+    : (cat.icon + '  ' + cat.label + ' Domain');
   tag.style.cssText = `display:inline-flex;align-items:center;gap:7px;padding:6px 14px;
     border-radius:20px;font-family:'Nunito',sans-serif;font-size:11px;font-weight:800;
     letter-spacing:1.5px;text-transform:uppercase;margin-bottom:22px;
-    background:${cat.bg};color:${cat.color};border:1px solid ${cat.border};`;
+    background:${isRound2 ? 'var(--amber-pale)' : cat.bg};
+    color:${isRound2 ? 'var(--amber)' : cat.color};
+    border:1px solid ${isRound2 ? 'rgba(196,149,42,0.3)' : cat.border};`;
 
   // Q number + text
-  document.getElementById('qNumLine').textContent = `QUESTION ${String(idx+1).padStart(2,'0')} / ${String(questions.length).padStart(2,'0')}`;
-  document.getElementById('qText').textContent    = q.q;
+  document.getElementById('qNumLine').textContent = isRound2
+    ? `FOLLOW-UP ${String(idx + 1).padStart(2, '0')} / ${String(currentQuestions.length).padStart(2, '0')}`
+    : `QUESTION ${String(idx + 1).padStart(2, '0')} / ${String(currentQuestions.length).padStart(2, '0')}`;
+  document.getElementById('qText').textContent = q.q;
 
   // Card animation — re-trigger
   const card = document.getElementById('qCard');
@@ -622,7 +686,7 @@ function renderQ() {
   // Answers
   const row = document.getElementById('answerRow');
   row.innerHTML = '';
-  const selectedVal = answered[idx];
+  const selectedVal = round === 1 ? answersR1[idx] : answersR2[idx];
   ANSWERS.forEach(a => {
     const btn = document.createElement('button');
     btn.className = `ans-btn ${a.cls}`;
@@ -648,6 +712,7 @@ function renderQ() {
 function updateDots() {
   document.querySelectorAll('.q-dot-item').forEach((el, i) => {
     el.className = 'q-dot-item';
+    const answered = round === 1 ? answersR1 : answersR2;
     if (answered[i] !== undefined) el.classList.add('answered');
     if (i === idx) el.classList.add('current');
     const num = el.querySelector('.q-dot-num');
@@ -666,12 +731,14 @@ function updateNavButtons() {
   if (!prevBtn || !nextBtn) return;
 
   prevBtn.style.display = idx === 0 ? 'none' : 'inline-flex';
+  const answered = round === 1 ? answersR1 : answersR2;
   nextBtn.style.display = answered[idx] !== undefined ? 'inline-flex' : 'none';
   nextBtn.disabled = answered[idx] === undefined;
 }
 
 function recomputeTotalScore() {
-  totalScore = answered.reduce((sum, val) => sum + (val || 0), 0);
+  totalScore = answersR1.reduce((sum, val) => sum + (val || 0), 0)
+    + answersR2.reduce((sum, val) => sum + (val || 0), 0);
   document.getElementById('runningScore').textContent = totalScore;
 }
 
@@ -682,9 +749,14 @@ function goPrev() {
 }
 
 function goNext() {
+  const answered = round === 1 ? answersR1 : answersR2;
   if (answered[idx] === undefined) return;
   idx++;
-  if (idx === questions.length) {
+  if (idx === currentQuestions.length) {
+    if (round === 1) {
+      startRound2();
+      return;
+    }
     submitAll();
     return;
   }
@@ -702,33 +774,90 @@ function pick(val, btn) {
   btn.style.background  = 'var(--teal-pale)';
 
   setTimeout(() => {
-    answered[idx] = val;
+    const target = round === 1 ? answersR1 : answersR2;
+    target[idx] = val;
     recomputeTotalScore();
     idx++;
 
-    if (idx < questions.length) {
+    if (idx < currentQuestions.length) {
       renderQ();
     } else {
-      submitAll();
+      if (round === 1) {
+        startRound2();
+      } else {
+        submitAll();
+      }
     }
   }, 380);
 }
 
+async function startRound2() {
+  setLoadingState('Personalising your assessment…', 'Generating targeted follow-up questions from your response pattern');
+  document.getElementById('loadingOverlay').classList.add('active');
+  const bd = compute_breakdown(answersR1);
+  const level = compute_level(bd);
+  const role = user.role || 'student';
+
+  let generated = [];
+  try {
+    const res = await fetch('http://localhost:5000/generate-questions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role, answers: answersR1, breakdown: bd, level })
+    });
+    const data = await res.json();
+    generated = Array.isArray(data.questions) ? data.questions : [];
+  } catch (_) {
+    generated = [];
+  }
+
+  if (!generated.length) generated = FALLBACK_R2;
+  questionsR2 = generated.slice(0, 8);
+  round = 2;
+  currentQuestions = questionsR2;
+  idx = 0;
+  document.getElementById('maxPossible').textContent = (questionsR1.length + questionsR2.length) * 5;
+  buildDotList();
+  document.getElementById('loadingOverlay').classList.remove('active');
+  renderQ();
+}
+
+function setLoadingState(title, subtitle) {
+  document.getElementById('loadingTitle').textContent = title;
+  document.getElementById('loadingSub').textContent = subtitle;
+}
+
+function mergeRound2Breakdown(baseBreakdown, r2) {
+  const merged = {
+    cognitive: Number(baseBreakdown.cognitive || 0),
+    anxiety: Number(baseBreakdown.anxiety || 0),
+    emotional: Number(baseBreakdown.emotional || 0),
+    sleep: Number(baseBreakdown.sleep || 0),
+  };
+  const order = ['cognitive', 'anxiety', 'emotional', 'sleep'];
+  r2.forEach((val, i) => {
+    merged[order[i % order.length]] += Number(val) || 0;
+  });
+  return merged;
+}
+
 /* ─── SUBMIT ─── */
 async function submitAll() {
+  setLoadingState('Analysing your responses…', 'Clinical AI is computing your stress profile');
   document.getElementById('loadingOverlay').classList.add('active');
-  const score = answered.reduce((a,b) => a+b, 0);
-  const bd = compute_breakdown(answered);
+  const score = answersR1.reduce((a, b) => a + b, 0) + answersR2.reduce((a, b) => a + b, 0);
+  const bdR1 = compute_breakdown(answersR1);
+  const bd = mergeRound2Breakdown(bdR1, answersR2);
   const level = compute_level(bd);
 
   try {
     const res = await fetch('http://localhost:5000/submit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ answers: answered, user: user })
+      body: JSON.stringify({ answers: answersR1, answers_r2: answersR2, user: user })
     });
     const data = await res.json();
-    if (!data || !data.score) throw new Error('bad response');
+    if (!data || (data.score === undefined || data.score === null)) throw new Error('bad response');
 
     localStorage.setItem('score',     data.score ?? score);
     localStorage.setItem('result',    data.level || level);

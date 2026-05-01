@@ -29,30 +29,33 @@ python -m venv venv
 ### 2. Install Dependencies
 
 ```bash
-pip install -r requirements.txt
+pip install -r ../requirements.txt
 ```
 
 ### 3. Configure Environment (Optional)
 
-Create a `.env` file in the `backend/` directory for MongoDB persistence:
+Create a `.env` file in the `backend/` directory for MongoDB persistence (do NOT commit):
 
 ```env
 MONGO_URI=mongodb+srv://<username>:<password>@cluster.mongodb.net/hpalytics
 ```
 
-> **Note:** Without `MONGO_URI`, the app runs in-memory (sessions lost on restart).
+The backend automatically loads `backend/.env` (load_dotenv() was added to backend/main.py). Without `MONGO_URI`, the app runs in-memory (sessions lost on restart).
 
 ### 4. Run the Server
 
 **Development (with auto-reload):**
 ```bash
+# From the backend directory:
 uvicorn main:app --reload --port 5000
+
+# Or from the repository root:
 uvicorn backend.main:app --reload --port 5000
 ```
 
 **Production:**
 ```bash
-uvicorn main:app --host 0.0.0.0 --port 5000
+uvicorn backend.main:app --host 0.0.0.0 --port 5000
 ```
 
 The server starts at **`http://localhost:5000`**

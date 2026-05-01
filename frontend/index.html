@@ -227,6 +227,23 @@
   letter-spacing: 0.5px;
 }
 
+.top-auth {
+  position: fixed;
+  top: 16px;
+  right: 20px;
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.top-auth-name {
+  font-family: 'Nunito', sans-serif;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--teal);
+}
+
 /* ── RESPONSIVE ── */
 @media (max-width: 900px) {
   .hero { grid-template-columns: 1fr; }
@@ -238,6 +255,7 @@
 </style>
 </head>
 <body>
+<div id="authTopRight" class="top-auth"></div>
 
 <div class="hero">
 
@@ -328,8 +346,24 @@
 </div>
 
 <script>
+const APP_KEYS = [
+  'logged_in_email', 'mp_name', 'mp_email', 'mp_phone', 'user',
+  'score', 'result', 'report', 'breakdown', 'remedies', 'hp_history', 'hp_returning'
+];
+
 window.addEventListener('DOMContentLoaded', () => {
-  try { JSON.parse(localStorage.getItem('hp_history') || '[]'); } catch (_) {}
+  const loggedEmail = localStorage.getItem('logged_in_email');
+  if (!loggedEmail) {
+    window.location.href = 'auth.html';
+    return;
+  }
+  renderAuthTopRight();
+
+  let user = {};
+  try { user = JSON.parse(localStorage.getItem('user') || '{}'); } catch (_) {}
+  if (user.name) document.getElementById('name').value = user.name;
+  if (user.email) document.getElementById('email').value = user.email;
+  if (user.phone) document.getElementById('phone').value = user.phone;
 });
 
 function login() {
@@ -341,28 +375,33 @@ function login() {
   if (!email) return toast('Please enter your email address', 'error');
   if (!phone) return toast('Please enter your phone number', 'error');
 
-  localStorage.setItem('mp_name',  name);
+  localStorage.setItem('mp_name', name);
   localStorage.setItem('mp_email', email);
   localStorage.setItem('mp_phone', phone);
 
-  let history = [];
-  try { history = JSON.parse(localStorage.getItem('hp_history') || '[]'); } catch (_) {}
-  const emailLc = email.toLowerCase();
-  const match = history.find(entry => (entry.email || '').toLowerCase() === emailLc);
-
-  if (match) {
-    const firstName = (match.name || name).split(' ')[0] || 'User';
-    localStorage.setItem('mp_name',  match.name || name);
-    localStorage.setItem('mp_email', match.email || email);
-    localStorage.setItem('mp_phone', match.phone || phone);
-    localStorage.setItem('hp_returning', 'true');
-    toast('Welcome back, ' + firstName + '! Loading your previous data…', 'success');
-  } else {
-    localStorage.setItem('hp_returning', 'false');
-    toast('Welcome, ' + name.split(' ')[0] + '! Taking you to your profile…', 'success');
-  }
-
+  let user = {};
+  try { user = JSON.parse(localStorage.getItem('user') || '{}'); } catch (_) {}
+  user.name = name;
+  user.email = email;
+  user.phone = phone;
+  localStorage.setItem('user', JSON.stringify(user));
   setTimeout(() => window.location.href = 'profile.html', 900);
+}
+
+function renderAuthTopRight() {
+  let user = {};
+  try { user = JSON.parse(localStorage.getItem('user') || '{}'); } catch (_) {}
+  const firstName = (user.name || 'User').split(' ')[0];
+  const slot = document.getElementById('authTopRight');
+  slot.innerHTML = `
+    <span class="top-auth-name">${firstName}</span>
+    <button class="btn-secondary" style="width:auto;padding:10px 14px;" onclick="logout()">Logout</button>
+  `;
+}
+
+function logout() {
+  APP_KEYS.forEach((key) => localStorage.removeItem(key));
+  window.location.href = 'auth.html';
 }
 
 function toast(msg, type) {

@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HPAlytics — Sign In</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Nunito:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+.auth-wrap {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+}
+.auth-left {
+  background: var(--teal);
+  color: #fff;
+  padding: 60px 48px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.auth-right {
+  background: var(--bg-canvas);
+  padding: 56px 48px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.auth-card {
+  width: 100%;
+  max-width: 720px;
+  background: var(--bg-white);
+  border: 1px solid var(--border-sm);
+  border-radius: var(--r-xl);
+  box-shadow: var(--shadow-lg);
+  padding: 32px;
+}
+.auth-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+.auth-tab {
+  border: 1px solid var(--border-sm);
+  background: var(--bg-warm);
+  border-radius: var(--r-sm);
+  padding: 10px 12px;
+  font-family: 'Nunito', sans-serif;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text-500);
+  cursor: pointer;
+}
+.auth-tab.active {
+  background: var(--teal-pale);
+  color: var(--teal);
+  border-color: var(--border-md);
+}
+.auth-pane { display: none; }
+.auth-pane.active { display: block; }
+.gender-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.gender-opt {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 14px 8px; border: 2px solid var(--border-sm); border-radius: var(--r-sm);
+  background: var(--bg-warm); cursor: pointer;
+  font-family: 'Nunito', sans-serif; font-size: 12px; font-weight: 700;
+}
+.gender-opt.selected { border-color: var(--teal); background: var(--teal-pale); }
+.role-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.role-card {
+  border: 2px solid var(--border-sm); border-radius: var(--r-sm);
+  background: var(--bg-warm); padding: 16px 10px; text-align: center; cursor: pointer;
+}
+.role-card.selected { border-color: var(--teal); background: var(--teal-pale); }
+.role-name { font-family: 'Nunito', sans-serif; font-size: 12px; font-weight: 800; color: var(--text-700); }
+.section-label {
+  margin: 14px 0 8px;
+  font-family: 'Nunito', sans-serif;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--text-400);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+@media (max-width: 980px) {
+  .auth-wrap { grid-template-columns: 1fr; }
+  .auth-left { display: none; }
+}
+@media (max-width: 680px) {
+  .auth-right { padding: 24px 14px; }
+  .auth-card { padding: 20px; }
+  .role-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="auth-wrap">
+  <div class="auth-left">
+    <div style="font-family:'Nunito',sans-serif;font-size:11px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,0.7);margin-bottom:10px;">Clinical Access</div>
+    <h1 style="font-family:'Playfair Display',serif;font-size:42px;line-height:1.12;margin-bottom:14px;">HPAlytics <br><em style="font-style:italic;color:rgba(255,255,255,0.75);">Assessment Portal</em></h1>
+    <p style="font-family:'Nunito',sans-serif;font-size:15px;line-height:1.7;color:rgba(255,255,255,0.78);">Create an account or sign in to continue your personalised stress assessment journey.</p>
+  </div>
+  <div class="auth-right">
+    <div class="auth-card">
+      <div class="auth-tabs">
+        <button id="tabSignin" class="auth-tab active" onclick="showTab('signin')">Sign In</button>
+        <button id="tabSignup" class="auth-tab" onclick="showTab('signup')">Create Account</button>
+      </div>
+
+      <div id="paneSignin" class="auth-pane active">
+        <div class="mp-field">
+          <input type="email" id="loginEmail" class="mp-input" placeholder=" ">
+          <label class="mp-label">Email</label>
+        </div>
+        <div class="mp-field">
+          <input type="password" id="loginPassword" class="mp-input" placeholder=" ">
+          <label class="mp-label">Password</label>
+        </div>
+        <button class="btn-primary" onclick="login()">Sign In</button>
+      </div>
+
+      <div id="paneSignup" class="auth-pane">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div class="mp-field">
+            <input type="text" id="sName" class="mp-input" placeholder=" ">
+            <label class="mp-label">Full Name</label>
+          </div>
+          <div class="mp-field">
+            <input type="number" id="sAge" class="mp-input" placeholder=" ">
+            <label class="mp-label">Age</label>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div class="mp-field">
+            <input type="email" id="sEmail" class="mp-input" placeholder=" ">
+            <label class="mp-label">Email</label>
+          </div>
+          <div class="mp-field">
+            <input type="tel" id="sPhone" class="mp-input" placeholder=" ">
+            <label class="mp-label">Phone</label>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div class="mp-field">
+            <input type="password" id="sPassword" class="mp-input" placeholder=" ">
+            <label class="mp-label">Password</label>
+          </div>
+          <div class="mp-field">
+            <input type="password" id="sPassword2" class="mp-input" placeholder=" ">
+            <label class="mp-label">Confirm Password</label>
+          </div>
+        </div>
+
+        <div class="section-label">Gender</div>
+        <div class="gender-grid">
+          <div class="gender-opt" onclick="selectGender(this, 'Male')">♂️ Male</div>
+          <div class="gender-opt" onclick="selectGender(this, 'Female')">♀️ Female</div>
+          <div class="gender-opt" onclick="selectGender(this, 'Other')">⚧️ Other</div>
+        </div>
+        <input id="sGender" type="hidden">
+
+        <div class="section-label">Role</div>
+        <div class="role-grid">
+          <div class="role-card" onclick="selectRole(this, 'student')"><div class="role-name">🎓 Student</div></div>
+          <div class="role-card" onclick="selectRole(this, 'working')"><div class="role-name">💼 Professional</div></div>
+          <div class="role-card" onclick="selectRole(this, 'home')"><div class="role-name">🏠 Homemaker</div></div>
+        </div>
+        <input id="sRole" type="hidden">
+
+        <div style="margin-top:16px;">
+          <button class="btn-primary" onclick="signup()">Create Account</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+window.addEventListener('DOMContentLoaded', () => {
+  if (localStorage.getItem('logged_in_email')) {
+    window.location.href = 'profile.html';
+  }
+});
+
+function showTab(tab) {
+  const signin = tab === 'signin';
+  document.getElementById('tabSignin').classList.toggle('active', signin);
+  document.getElementById('tabSignup').classList.toggle('active', !signin);
+  document.getElementById('paneSignin').classList.toggle('active', signin);
+  document.getElementById('paneSignup').classList.toggle('active', !signin);
+}
+
+function selectGender(el, val) {
+  document.querySelectorAll('.gender-opt').forEach(x => x.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('sGender').value = val;
+}
+
+function selectRole(el, val) {
+  document.querySelectorAll('.role-card').forEach(x => x.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('sRole').value = val;
+}
+
+async function signup() {
+  const payload = {
+    name: document.getElementById('sName').value.trim(),
+    email: document.getElementById('sEmail').value.trim().toLowerCase(),
+    password: document.getElementById('sPassword').value,
+    age: document.getElementById('sAge').value.trim(),
+    gender: document.getElementById('sGender').value,
+    phone: document.getElementById('sPhone').value.trim(),
+    role: document.getElementById('sRole').value,
+  };
+  const confirm = document.getElementById('sPassword2').value;
+
+  if (!payload.name || !payload.email || !payload.password || !payload.age || !payload.gender || !payload.phone || !payload.role) {
+    return toast('Please complete all signup fields', 'error');
+  }
+  if (payload.password !== confirm) {
+    return toast('Passwords do not match', 'error');
+  }
+
+  try {
+    const res = await fetch('http://localhost:5000/auth/signup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.detail || 'Signup failed');
+
+    localStorage.setItem('logged_in_email', payload.email);
+    localStorage.setItem('mp_name', payload.name);
+    localStorage.setItem('mp_email', payload.email);
+    localStorage.setItem('mp_phone', payload.phone);
+    localStorage.setItem('user', JSON.stringify({
+      name: payload.name,
+      email: payload.email,
+      role: payload.role,
+      age: payload.age,
+      gender: payload.gender,
+      phone: payload.phone
+    }));
+    toast('Account created successfully', 'success');
+    setTimeout(() => window.location.href = 'profile.html', 800);
+  } catch (err) {
+    toast(err.message || 'Signup failed', 'error');
+  }
+}
+
+async function login() {
+  const email = document.getElementById('loginEmail').value.trim().toLowerCase();
+  const password = document.getElementById('loginPassword').value;
+  if (!email || !password) return toast('Enter email and password', 'error');
+
+  try {
+    const res = await fetch('http://localhost:5000/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.detail || 'Login failed');
+
+    localStorage.setItem('logged_in_email', email);
+    localStorage.setItem('mp_name', data.user.name || '');
+    localStorage.setItem('mp_email', data.user.email || email);
+    localStorage.setItem('mp_phone', data.user.phone || '');
+    localStorage.setItem('user', JSON.stringify(data.user || {}));
+    toast('Welcome back!', 'success');
+    setTimeout(() => window.location.href = 'profile.html', 700);
+  } catch (err) {
+    toast(err.message || 'Invalid credentials', 'error');
+  }
+}
+
+function toast(msg, type) {
+  const existing = document.getElementById('mp-toast');
+  if (existing) existing.remove();
+  const el = document.createElement('div');
+  el.id = 'mp-toast';
+  el.innerHTML = (type === 'success' ? '<span>✅</span>' : '<span>⚠️</span>') + msg;
+  el.style.cssText = `color:${type==='success'?'var(--sage)':'var(--blush)'};
+    border:1.5px solid ${type==='success'?'rgba(92,138,107,0.28)':'rgba(196,121,107,0.28)'};`;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 2800);
+}
+</script>
+</body>
+</html>

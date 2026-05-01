@@ -285,6 +285,7 @@
     <div class="nav-sep"></div>
     <div class="nav-step active"><div class="nav-step-num">4</div> Report</div>
   </div>
+  <div id="authNavSlot"></div>
 </nav>
 
 <main class="mp-page result-bg">
@@ -439,6 +440,11 @@
 </main>
 
 <script>
+const APP_KEYS = [
+  'logged_in_email', 'mp_name', 'mp_email', 'mp_phone', 'user',
+  'score', 'result', 'report', 'breakdown', 'remedies', 'hp_history', 'hp_returning'
+];
+
 const MICRO_HABITS = [
   {icon:'🌅', text:'5-min morning breathing exercise'},
   {icon:'💧', text:'8 glasses of water daily'},
@@ -458,50 +464,48 @@ const BD_CONFIG = {
 };
 
 const ROLE_LABELS = { student:'Student 🎓', working:'Working Professional 💼', home:'Homemaker 🏠' };
-const LEVEL_DOT   = { Low:'🟢', Moderate:'🟡', High:'🔴' };
+const LEVEL_DOT = { Low:'🟢', Moderate:'🟡', High:'🔴' };
 
-window.addEventListener('DOMContentLoaded', () => {
-  /* Pull stored data */
-  let score     = parseInt(localStorage.getItem('score')  || '0');
-  let level     = localStorage.getItem('result')          || 'Low';
-  let report    = localStorage.getItem('report')          || '—';
-  let breakdown = {}; try { breakdown = JSON.parse(localStorage.getItem('breakdown') || '{}'); } catch(e){}
-  let remedies  = []; try { remedies  = JSON.parse(localStorage.getItem('remedies')  || '[]'); } catch(e){}
-  let user   = {}; try { user   = JSON.parse(localStorage.getItem('user')   || '{}'); } catch(e){}
+window.addEventListener('DOMContentLoaded', async () => {
+  const loggedEmail = (localStorage.getItem('logged_in_email') || '').toLowerCase();
+  if (!loggedEmail) {
+    window.location.href = 'auth.html';
+    return;
+  }
 
-  /* ── Score ring ── */
+  let score = parseInt(localStorage.getItem('score') || '0', 10);
+  let level = localStorage.getItem('result') || 'Low';
+  let report = localStorage.getItem('report') || '—';
+  let breakdown = {}; try { breakdown = JSON.parse(localStorage.getItem('breakdown') || '{}'); } catch (e) {}
+  let remedies = []; try { remedies = JSON.parse(localStorage.getItem('remedies') || '[]'); } catch (e) {}
+  let user = {}; try { user = JSON.parse(localStorage.getItem('user') || '{}'); } catch (e) {}
+  if (!user.email) user.email = loggedEmail;
+  localStorage.setItem('user', JSON.stringify(user));
+
+  renderNavAuth(user);
+
   const MAX = 75;
   const pct = Math.min((score / MAX) * 100, 100);
   const circ = 364.4;
   const offset = circ - (pct / 100) * circ;
-
   document.getElementById('scoreNum').textContent = score;
-
-  // Ring colour by level
   const ringColours = { Low:'#5C8A6B', Moderate:'#C4952A', High:'#C4796B' };
   const arc = document.getElementById('ringArc');
   arc.style.stroke = ringColours[level] || '#1B6B6B';
   setTimeout(() => { arc.style.strokeDashoffset = offset; }, 200);
 
-  /* ── Level pill ── */
   const pill = document.getElementById('levelPill');
   pill.textContent = (LEVEL_DOT[level] || '⚪') + '  ' + level + ' Stress';
-
-  /* ── Report text ── */
   document.getElementById('reportText').textContent = report;
-
-  /* ── User details ── */
-  document.getElementById('pName').textContent      = user.name || '—';
+  document.getElementById('pName').textContent = user.name || '—';
   document.getElementById('pAgeGender').textContent = (user.age || '—') + ' yrs · ' + (user.gender || '—');
-  document.getElementById('pRole').textContent      = ROLE_LABELS[user.role] || user.role || '—';
-  document.getElementById('pEmail').textContent     = user.email || '—';
+  document.getElementById('pRole').textContent = ROLE_LABELS[user.role] || user.role || '—';
+  document.getElementById('pEmail').textContent = user.email || '—';
 
-  /* ── Stress meter ── */
   const meterEl = document.getElementById('meterFill');
   meterEl.setAttribute('data-pct', Math.round(pct) + '%');
   setTimeout(() => { meterEl.style.width = pct + '%'; }, 300);
 
-  /* ── Breakdown bars ── */
   const bdContainer = document.getElementById('breakdownBars');
   Object.entries(BD_CONFIG).forEach(([key, cfg]) => {
     const val = breakdown[key] || 0;
@@ -524,7 +528,6 @@ window.addEventListener('DOMContentLoaded', () => {
     });
   }, 500);
 
-  /* ── Remedies ── */
   const rc = document.getElementById('remedyContainer');
   if (!remedies.length) {
     rc.innerHTML = `<p style="font-family:'Nunito';color:var(--text-400);font-size:14px;padding:8px 0;">Great news — no critical stress patterns detected. Keep up your healthy habits!</p>`;
@@ -547,7 +550,6 @@ window.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  /* ── Micro habits ── */
   const mg = document.getElementById('microGrid');
   MICRO_HABITS.forEach(h => {
     const el = document.createElement('div');
@@ -576,15 +578,48 @@ window.addEventListener('DOMContentLoaded', () => {
   });
   localStorage.setItem('hp_history', JSON.stringify(history));
 
-  const currentEmail = (user.email || '').toLowerCase();
-  const userHistory = history
-    .filter(entry => (entry.email || '').toLowerCase() === currentEmail)
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-  if (currentEmail && userHistory.length >= 2) {
-    renderStressHistorySection(userHistory);
+  const backendHistory = await fetchBackendHistory(loggedEmail);
+  if (backendHistory.length >= 2) {
+    renderStressHistorySection(backendHistory);
+  } else {
+    const localHistory = history
+      .filter(entry => (entry.email || '').toLowerCase() === loggedEmail)
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    if (localHistory.length >= 2) renderStressHistorySection(localHistory);
   }
 });
+
+function renderNavAuth(user) {
+  const firstName = (user.name || 'User').split(' ')[0];
+  const slot = document.getElementById('authNavSlot');
+  slot.innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span style="font-family:'Nunito',sans-serif;font-size:12px;font-weight:800;color:var(--teal);">${firstName}</span>
+      <button class="btn-secondary" style="width:auto;padding:10px 14px;" onclick="logout()">Logout</button>
+    </div>
+  `;
+}
+
+function logout() {
+  APP_KEYS.forEach((key) => localStorage.removeItem(key));
+  window.location.href = 'auth.html';
+}
+
+async function fetchBackendHistory(email) {
+  try {
+    const res = await fetch(`http://localhost:5000/users/me/sessions?email=${encodeURIComponent(email)}`);
+    const data = await res.json();
+    const sessions = Array.isArray(data.sessions) ? data.sessions : [];
+    return sessions
+      .map((s) => ({
+        date: s.date || new Date().toISOString(),
+        score: Number(s.score) || 0,
+      }))
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  } catch (_) {
+    return [];
+  }
+}
 
 function toggleRemedy(head) {
   head.closest('.remedy-wrap').classList.toggle('open');
@@ -669,7 +704,7 @@ function renderStressHistorySection(userHistory) {
 }
 
 /* ── PDF EXPORT ── */
- async function downloadPDF(){
+async function downloadPDF(){
 
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit:'mm', format:'a4' });

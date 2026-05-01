@@ -233,6 +233,7 @@
     <div class="nav-sep"></div>
     <div class="nav-step"><div class="nav-step-num">4</div> Report</div>
   </div>
+  <div id="authNavSlot"></div>
 </nav>
 
 <main class="mp-page">
@@ -363,37 +364,60 @@
 </main>
 
 <script>
+const APP_KEYS = [
+  'logged_in_email', 'mp_name', 'mp_email', 'mp_phone', 'user',
+  'score', 'result', 'report', 'breakdown', 'remedies', 'hp_history', 'hp_returning'
+];
+
 window.addEventListener('DOMContentLoaded', () => {
-  const n = localStorage.getItem('mp_name') || '';
-  const e = localStorage.getItem('mp_email') || '';
-  const p = localStorage.getItem('mp_phone') || '';
-  if (n) document.getElementById('name').value  = n;
-  if (e) document.getElementById('email').value = e;
-  if (p) document.getElementById('phone').value = p;
+  const loggedEmail = localStorage.getItem('logged_in_email');
+  if (!loggedEmail) {
+    window.location.href = 'auth.html';
+    return;
+  }
+
+  renderNavAuth();
+  hydrateProfile(loggedEmail);
 
   const banner = document.getElementById('returningBanner');
   const dismiss = document.getElementById('dismissReturningBanner');
   if (dismiss) dismiss.addEventListener('click', () => { if (banner) banner.style.display = 'none'; });
-
-  if (localStorage.getItem('hp_returning') === 'true') {
-    let history = [];
-    try { history = JSON.parse(localStorage.getItem('hp_history') || '[]'); } catch (_) {}
-    const email = (e || '').toLowerCase();
-    const matches = history.filter(entry => (entry.email || '').toLowerCase() === email);
-    const lastMatch = matches.length ? matches[matches.length - 1] : null;
-
-    let savedUser = {};
-    try { savedUser = JSON.parse(localStorage.getItem('user') || '{}'); } catch (_) {}
-    const sameUser = (savedUser.email || '').toLowerCase() === email ? savedUser : {};
-    const genderVal = (lastMatch && lastMatch.gender) || sameUser.gender || '';
-    const roleVal = (lastMatch && lastMatch.role) || sameUser.role || '';
-
-    preselectGender(genderVal);
-    preselectRole(roleVal);
-
-    if (banner) banner.style.display = 'flex';
-  }
 });
+
+function hydrateProfile(loggedEmail) {
+  let savedUser = {};
+  try { savedUser = JSON.parse(localStorage.getItem('user') || '{}'); } catch (_) {}
+
+  const n = savedUser.name || localStorage.getItem('mp_name') || '';
+  const e = savedUser.email || localStorage.getItem('mp_email') || loggedEmail;
+  const p = savedUser.phone || localStorage.getItem('mp_phone') || '';
+  const a = savedUser.age || '';
+  if (n) document.getElementById('name').value = n;
+  if (e) document.getElementById('email').value = e;
+  if (p) document.getElementById('phone').value = p;
+  if (a) document.getElementById('age').value = a;
+
+  preselectGender(savedUser.gender || '');
+  preselectRole(savedUser.role || '');
+}
+
+function renderNavAuth() {
+  let user = {};
+  try { user = JSON.parse(localStorage.getItem('user') || '{}'); } catch (_) {}
+  const firstName = (user.name || 'User').split(' ')[0];
+  const slot = document.getElementById('authNavSlot');
+  slot.innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span style="font-family:'Nunito',sans-serif;font-size:12px;font-weight:800;color:var(--teal);">${firstName}</span>
+      <button class="btn-secondary" style="width:auto;padding:10px 14px;" onclick="logout()">Logout</button>
+    </div>
+  `;
+}
+
+function logout() {
+  APP_KEYS.forEach((key) => localStorage.removeItem(key));
+  window.location.href = 'auth.html';
+}
 
 function selectGender(el, val) {
   document.querySelectorAll('.gender-opt').forEach(x => x.classList.remove('selected'));
@@ -426,21 +450,26 @@ function preselectRole(val) {
 }
 
 function saveUser() {
+  const loggedEmail = localStorage.getItem('logged_in_email') || '';
   const p = {
-    name:   document.getElementById('name').value.trim(),
-    age:    document.getElementById('age').value.trim(),
+    name: document.getElementById('name').value.trim(),
+    age: document.getElementById('age').value.trim(),
     gender: document.getElementById('gender').value,
-    phone:  document.getElementById('phone').value.trim(),
-    email:  document.getElementById('email').value.trim(),
-    role:   document.getElementById('role').value,
+    phone: document.getElementById('phone').value.trim(),
+    email: (document.getElementById('email').value.trim() || loggedEmail).toLowerCase(),
+    role: document.getElementById('role').value,
   };
-  if (!p.name)   return toast('Please enter your full name', 'error');
-  if (!p.age)    return toast('Please enter your age', 'error');
+  if (!p.name) return toast('Please enter your full name', 'error');
+  if (!p.age) return toast('Please enter your age', 'error');
   if (!p.gender) return toast('Please select your gender', 'error');
-  if (!p.phone)  return toast('Please enter your phone number', 'error');
-  if (!p.email)  return toast('Please enter your email', 'error');
-  if (!p.role)   return toast('Please select your primary role to get personalised questions', 'error');
+  if (!p.phone) return toast('Please enter your phone number', 'error');
+  if (!p.email) return toast('Please enter your email', 'error');
+  if (!p.role) return toast('Please select your primary role to get personalised questions', 'error');
 
+  localStorage.setItem('logged_in_email', p.email);
+  localStorage.setItem('mp_name', p.name);
+  localStorage.setItem('mp_email', p.email);
+  localStorage.setItem('mp_phone', p.phone);
   localStorage.setItem('user', JSON.stringify(p));
   toast('Profile saved! Preparing your assessment…', 'success');
   setTimeout(() => window.location.href = 'questions.html', 1000);
