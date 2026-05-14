@@ -18,7 +18,8 @@ HPAlytics/
 │   ├── index.html           # Entry details (Step 1)
 │   ├── profile.html         # User profile & role selection (Step 2)
 │   ├── questions.html       # 2-round psychometric assessment (Step 3)
-│   ├── result.html          # Clinical report, remedies, history chart (Step 4)
+│   ├── checkin.html         # Weekly personalized check-in for returning users
+│   ├── result.html          # Clinical report, remedies, weekly analytics (Step 4)
 │   ├── script.js            # Legacy script (superseded by inline JS in HTML files)
 │   └── style.css            # Global design system
 ├── requirements.txt
@@ -32,6 +33,7 @@ HPAlytics/
 ```
 auth.html  →  index.html  →  profile.html  →  questions.html  →  result.html
  Sign In       Entry Info      Role Setup      2-Round Quiz        Report + PDF
+                    └── eligible returning users can choose checkin.html ┘
 ```
 
 1. **Auth** — Sign up or log in (credentials stored in `users.json` / MongoDB).
@@ -39,7 +41,8 @@ auth.html  →  index.html  →  profile.html  →  questions.html  →  result.
 3. **Profile** — Set age, gender, role (Student / Professional / Homemaker).
 4. **Assessment Round 1** — 15 role-specific psychometric questions (1–5 frequency scale).
 5. **Assessment Round 2** — 5–8 AI-generated personalised follow-up questions (via Gemini, with fallback).
-6. **Report** — Stress score, dimension breakdown, remedies, trend chart, PDF download.
+6. **Weekly Check-In** — Returning users with a session 7+ days old can take a 10–12 question personalized check-in instead of the full flow.
+7. **Report** — Stress score, dimension breakdown, remedies, weekly analytics dashboard, PDF download.
 
 ---
 
@@ -114,6 +117,10 @@ cd frontend && python -m http.server 3000
 | `POST` | `/submit` | Submit assessment answers, get scored report |
 | `POST` | `/generate-questions` | Generate Round 2 questions via Gemini |
 | `GET` | `/users/me/sessions?email=` | Fetch a user's session history |
+| `GET` | `/users/me/weekly-status?email=` | Check weekly check-in eligibility |
+| `POST` | `/weekly-checkin/generate-questions` | Generate personalized weekly check-in questions |
+| `POST` | `/weekly-checkin/submit` | Submit weekly check-in answers and append a session |
+| `POST` | `/analytics/insight` | Generate a short trend insight for the analytics dashboard |
 | `GET` | `/sessions` | In-memory session log (debug) |
 | `GET` | `/users` | All users from MongoDB (requires Mongo) |
 
@@ -210,6 +217,35 @@ Returns 5–8 Gemini-generated questions, falling back to 5 hardcoded questions 
 
 ---
 
+### Weekly Check-In Endpoints
+
+`GET /users/me/weekly-status?email=jane@example.com` returns whether the latest session is at least 7 days old:
+
+```json
+{
+  "eligible": true,
+  "days_since": 8,
+  "session_count": 3,
+  "last_session": { "session_id": "uuid", "score": 42 }
+}
+```
+
+`POST /weekly-checkin/generate-questions` accepts the user's role and session history, then returns 10–12 questions plus the focus dimensions:
+
+```json
+{
+  "email": "jane@example.com",
+  "role": "student",
+  "session_history": []
+}
+```
+
+`POST /weekly-checkin/submit` accepts 10–12 answers and the question list with `cat` fields, scores the check-in with the same weighted level formula, and appends a session with `"checkin_type": "weekly"`.
+
+`POST /analytics/insight` accepts the latest session history and returns a cached 2–3 sentence dashboard insight.
+
+---
+
 ## Scoring & Classification
 
 ### Dimension Breakdown (Round 1, 15 questions)
@@ -260,7 +296,9 @@ When `MONGO_URI` is absent, the app writes to `backend/data/users.json`. Each us
         "date": "2025-01-15T10:30:00",
         "score": 52,
         "level": "Moderate",
-        "breakdown": { "cognitive": 14, "anxiety": 8, "emotional": 18, "sleep": 12 }
+        "breakdown": { "cognitive": 14, "anxiety": 8, "emotional": 18, "sleep": 12 },
+        "checkin_type": "full",
+        "session_number": 1
       }
     ]
   }
@@ -285,6 +323,11 @@ When `MONGO_URI` is absent, the app writes to `backend/data/users.json`. Each us
 | `remedies` | JSON array | Array of remedy objects with `title`, `icon`, `details[]` |
 | `hp_history` | JSON array | All past sessions for history chart |
 | `hp_returning` | string | `"true"` / `"false"` — returning user flag |
+| `hp_weekly_questions` | JSON array | Weekly check-in questions for the current check-in |
+| `hp_weekly_focus_dims` | JSON array | Focus dimensions used for the current check-in |
+| `hp_weekly_avg_breakdown` | JSON object | Historical average breakdown for weekly generation |
+| `hp_insight_cache_{email}_{session_id}` | string | Cached AI trend insight for the latest session |
+| `hp_checkin_type` | string | `"full"` or `"weekly"` for the latest result |
 
 ---
 
@@ -298,6 +341,7 @@ When `MONGO_URI` is absent, the app writes to `backend/data/users.json`. Each us
 ### `index.html` — Entry
 - Requires login; redirects to `auth.html` otherwise
 - Pre-fills name, email, phone from `localStorage`
+- Checks weekly eligibility before routing; eligible users can choose Weekly Check-In or Full Assessment
 - Logout clears all `APP_KEYS` from `localStorage`
 
 ### `profile.html` — Profile Setup
@@ -313,14 +357,24 @@ When `MONGO_URI` is absent, the app writes to `backend/data/users.json`. Each us
 - Running score shown live in sidebar
 - On completion, POSTs to `/submit` and stores result to `localStorage`
 
+### `checkin.html` — Weekly Check-In
+- Requires a prior session and 7+ elapsed days
+- Fetches 10–12 personalized questions from `/weekly-checkin/generate-questions`
+- Shows a countdown screen when the next weekly check-in is not ready
+- Submits to `/weekly-checkin/submit` and stores the latest result for `result.html`
+
 ### `result.html` — Clinical Report
 - Animated score ring with colour-coded level pill
 - Stress intensity meter (visual gauge)
 - Animated dimension breakdown bars
 - Accordion remedy protocol cards
 - Daily micro-habits grid
-- **Stress History chart** — rendered as inline SVG from session history (requires ≥2 sessions)
-  - Pulls from backend `/users/me/sessions` first; falls back to `hp_history` in localStorage
+- **Weekly Analytics Dashboard** — rendered when ≥2 sessions exist
+  - Trend SVG across all sessions, with hollow points for weekly check-ins
+  - Dimension trend table for the latest 5 sessions
+  - Weekly streak badge when weekly cadence is detected
+  - Lazy-loaded AI Insight panel from `/analytics/insight`
+- **Stress History source** — backend `/users/me/sessions` first, then `hp_history`
 - **PDF Export** — client-side jsPDF report including user info, scores, breakdown, and remedies
 
 ---
@@ -334,7 +388,7 @@ When `MONGO_URI` is absent, the app writes to `backend/data/users.json`. Each us
 | Data validation | Pydantic v2 |
 | Database (primary) | MongoDB via Motor (async) |
 | Database (fallback) | JSON file (`backend/data/users.json`) |
-| AI integration | Google Gemini 1.5 Flash (`google-generativeai`) |
+| AI integration | Google Gemini 2.5 Flash (`google-generativeai`) |
 | Environment config | python-dotenv |
 | Frontend | Vanilla HTML, CSS, JavaScript (no framework) |
 | Fonts | Playfair Display + Nunito (Google Fonts) |
@@ -361,9 +415,10 @@ Questions are defined in `questions.html` (`QUESTIONS` object) and mirrored in `
 When `GEMINI_API_KEY` is set and `google-generativeai` is installed:
 
 1. After Round 1, the frontend sends `role`, `answers`, `breakdown`, and `level` to `POST /generate-questions`.
-2. The backend builds a clinical prompt and calls `gemini-1.5-flash`.
+2. The backend builds a clinical prompt and calls `gemini-2.5-flash`.
 3. The model returns 5–8 JSON questions `{ "q": "...", "cat": "cognitive|anxiety|emotional|sleep" }`.
-4. Responses are validated — questions with invalid categories or fewer than 5 valid items fall back to the hardcoded `FALLBACK_FOLLOWUP_QUESTIONS` list.
+4. Responses are validated — questions with invalid categories or too few valid items fall back to the hardcoded question lists.
+5. Weekly check-ins and dashboard insights also use `gemini-2.5-flash`, with silent fallbacks when Gemini is unavailable.
 
 If `GEMINI_API_KEY` is absent, or if the API call fails for any reason, the fallback list is used silently.
 
