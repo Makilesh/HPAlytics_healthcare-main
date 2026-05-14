@@ -230,7 +230,7 @@
   border: 1px solid var(--border-sm);
   border-radius: var(--r-sm);
   font-family: 'Nunito', sans-serif;
-  font-size: 12px; font-weight: 600; color: var(--text-600);
+  font-size: 12px; font-weight: 600; color: var(--text-500);
   transition: all 180ms var(--ease);
 }
 .micro-item:hover { background: var(--teal-ultra); border-color: var(--border-md); }
@@ -285,6 +285,7 @@
     <div class="nav-sep"></div>
     <div class="nav-step active"><div class="nav-step-num">4</div> Report</div>
   </div>
+  <div id="weeklyNavBadge" style="display:none;"><a href="checkin.html" class="weekly-badge">↻ Weekly Check-In Ready</a></div>
   <div id="authNavSlot"></div>
 </nav>
 
@@ -442,7 +443,8 @@
 <script>
 const APP_KEYS = [
   'logged_in_email', 'mp_name', 'mp_email', 'mp_phone', 'user',
-  'score', 'result', 'report', 'breakdown', 'remedies', 'hp_history', 'hp_returning'
+  'score', 'result', 'report', 'breakdown', 'remedies', 'hp_history', 'hp_returning',
+  'hp_weekly_questions', 'hp_weekly_focus_dims', 'hp_weekly_avg_breakdown', 'hp_checkin_type'
 ];
 
 const MICRO_HABITS = [
@@ -483,6 +485,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   localStorage.setItem('user', JSON.stringify(user));
 
   renderNavAuth(user);
+  initWeeklyNavBadge(loggedEmail);
 
   const MAX = 75;
   const pct = Math.min((score / MAX) * 100, 100);
@@ -600,6 +603,18 @@ function renderNavAuth(user) {
   `;
 }
 
+async function initWeeklyNavBadge(email) {
+  const badge = document.getElementById('weeklyNavBadge');
+  if (!badge || !email) return;
+  try {
+    const res = await fetch(`http://localhost:5000/users/me/weekly-status?email=${encodeURIComponent(email)}`);
+    const data = await res.json();
+    badge.style.display = data.eligible ? 'block' : 'none';
+  } catch (_) {
+    badge.style.display = 'none';
+  }
+}
+
 function logout() {
   APP_KEYS.forEach((key) => localStorage.removeItem(key));
   window.location.href = 'auth.html';
@@ -612,8 +627,12 @@ async function fetchBackendHistory(email) {
     const sessions = Array.isArray(data.sessions) ? data.sessions : [];
     return sessions
       .map((s) => ({
+        session_id: s.session_id || '',
         date: s.date || new Date().toISOString(),
         score: Number(s.score) || 0,
+        level: s.level || levelFromScore(Number(s.score) || 0),
+        breakdown: normalizeBreakdown(s.breakdown || {}),
+        checkin_type: s.checkin_type || 'full',
       }))
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   } catch (_) {
@@ -632,10 +651,26 @@ function formatHistoryDate(iso) {
   return `${dd} ${m}`;
 }
 
+function normalizeBreakdown(raw) {
+  raw = raw || {};
+  return {
+    cognitive: Number(raw.cognitive) || 0,
+    anxiety: Number(raw.anxiety) || 0,
+    emotional: Number(raw.emotional) || 0,
+    sleep: Number(raw.sleep) || 0,
+  };
+}
+
+function levelFromScore(score) {
+  if (score > 60) return 'High';
+  if (score > 35) return 'Moderate';
+  return 'Low';
+}
+
 function historyLevelColor(score) {
-  if (score > 60) return '#C4796B';
-  if (score > 35) return '#C4952A';
-  return '#5C8A6B';
+  if (score > 60) return 'var(--blush)';
+  if (score > 35) return 'var(--amber)';
+  return 'var(--sage)';
 }
 
 function renderStressHistorySection(userHistory) {
@@ -666,41 +701,143 @@ function renderStressHistorySection(userHistory) {
   }));
 
   const polyline = points.map(p => `${p.x},${p.y}`).join(' ');
-  const y35 = toY(35);
-  const y60 = toY(60);
+  const gridLines = [0, 35, 60, 75];
   const latest = points[points.length - 1];
+  const previous = points[points.length - 2];
+  const trendDelta = previous ? latest.score - previous.score : 0;
+  const trendLabel = Math.abs(trendDelta) <= 2 ? '→ Stable' : trendDelta < 0 ? '↑ Improving' : '↓ Worsening';
+  const lastFive = userHistory.slice(-5);
+  const dimensionTable = buildDimensionTrendTable(lastFive);
+  const streak = computeWeeklyStreak(userHistory);
+  const streakHtml = streak >= 2 ? `<div class="streak-badge">🔥 ${streak}-Week Streak — Keep it up!</div>` : '';
 
   const section = document.createElement('div');
   section.id = 'stressHistorySection';
-  section.className = 'result-section';
+  section.className = 'result-section fade-up-5';
   section.innerHTML = `
     <div class="rs-header">
       <div class="rs-header-icon">📈</div>
       <div>
-        <div class="rs-header-title">Stress History</div>
-        <div class="rs-header-sub">Your stress trend across all assessments</div>
+        <div class="rs-header-title">Weekly Analytics Dashboard</div>
+        <div class="rs-header-sub">Your stress trend across full assessments and weekly check-ins</div>
       </div>
     </div>
-    <svg width="100%" height="220px" viewBox="0 0 600 200" style="display:block;">
-      <line x1="${left}" y1="${y35}" x2="${vbW-right}" y2="${y35}" stroke="#C4952A" stroke-width="1.4" stroke-dasharray="6 5"></line>
-      <line x1="${left}" y1="${y60}" x2="${vbW-right}" y2="${y60}" stroke="#C4796B" stroke-width="1.4" stroke-dasharray="6 5"></line>
-      <polyline points="${polyline}" fill="none" stroke="#1B6B6B" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></polyline>
-      ${points.map(p => `<circle cx="${p.x}" cy="${p.y}" r="4.4" fill="${p.color}"></circle>`).join('')}
-      <text x="${latest.x + 10}" y="${latest.y - 8}" font-family="Nunito, sans-serif" font-size="12" font-weight="800" fill="#1B6B6B">${latest.score}</text>
-      ${points.map(p => `<text x="${p.x}" y="${vbH - 10}" text-anchor="middle" font-family="Nunito, sans-serif" font-size="10" fill="#7A8A98">${p.date}</text>`).join('')}
-      <text x="8" y="${toY(75) + 4}" font-family="Nunito, sans-serif" font-size="10" fill="#7A8A98">75</text>
-      <text x="14" y="${toY(35) + 4}" font-family="Nunito, sans-serif" font-size="10" fill="#7A8A98">35</text>
-      <text x="14" y="${toY(60) + 4}" font-family="Nunito, sans-serif" font-size="10" fill="#7A8A98">60</text>
-      <text x="16" y="${vbH - bottom + 4}" font-family="Nunito, sans-serif" font-size="10" fill="#7A8A98">0</text>
-    </svg>
-    <div style="display:flex;gap:14px;align-items:center;font-family:'Nunito',sans-serif;font-size:12px;color:var(--text-500);margin-top:10px;">
-      <span style="display:inline-flex;align-items:center;gap:6px;"><span style="width:8px;height:8px;border-radius:50%;background:#5C8A6B;display:inline-block;"></span>Low</span>
-      <span style="display:inline-flex;align-items:center;gap:6px;"><span style="width:8px;height:8px;border-radius:50%;background:#C4952A;display:inline-block;"></span>Moderate</span>
-      <span style="display:inline-flex;align-items:center;gap:6px;"><span style="width:8px;height:8px;border-radius:50%;background:#C4796B;display:inline-block;"></span>High</span>
+    <div class="analytics-chart-wrap">
+      <div class="trend-pill">${trendLabel}</div>
+      <svg width="100%" height="220px" viewBox="0 0 600 200" style="display:block;min-width:560px;">
+        ${gridLines.map(v => `<line x1="${left}" y1="${toY(v)}" x2="${vbW-right}" y2="${toY(v)}" stroke="var(--border-sm)" stroke-width="1.2" stroke-dasharray="${v === 0 ? '0' : '6 5'}"></line>`).join('')}
+        <polyline points="${polyline}" fill="none" stroke="var(--teal)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></polyline>
+        ${points.map((p, i) => {
+          const type = (userHistory[i].checkin_type || 'full').toLowerCase();
+          return type === 'weekly'
+            ? `<circle cx="${p.x}" cy="${p.y}" r="6" fill="${p.color}"></circle><circle cx="${p.x}" cy="${p.y}" r="3.4" fill="var(--bg-white)"></circle>`
+            : `<circle cx="${p.x}" cy="${p.y}" r="5" fill="${p.color}"></circle>`;
+        }).join('')}
+        <text x="${Math.min(latest.x + 10, vbW - 30)}" y="${latest.y - 8}" font-family="Nunito, sans-serif" font-size="12" font-weight="800" fill="var(--teal)">${latest.score}</text>
+        ${points.map(p => `<text x="${p.x}" y="${vbH - 10}" text-anchor="middle" font-family="Nunito, sans-serif" font-size="10" fill="var(--text-400)">${p.date}</text>`).join('')}
+        ${gridLines.map(v => `<text x="${v === 0 ? 16 : 10}" y="${toY(v) + 4}" font-family="Nunito, sans-serif" font-size="10" fill="var(--text-400)">${v}</text>`).join('')}
+      </svg>
+    </div>
+    <div class="chart-legend">
+      <span style="display:inline-flex;align-items:center;gap:6px;"><span class="legend-dot" style="background:var(--sage);"></span>Low</span>
+      <span style="display:inline-flex;align-items:center;gap:6px;"><span class="legend-dot" style="background:var(--amber);"></span>Moderate</span>
+      <span style="display:inline-flex;align-items:center;gap:6px;"><span class="legend-dot" style="background:var(--blush);"></span>High</span>
+      <span style="display:inline-flex;align-items:center;gap:6px;"><span class="legend-dot" style="border:2px solid var(--teal);background:var(--bg-white);"></span>Weekly</span>
+    </div>
+    ${dimensionTable}
+    ${streakHtml}
+    <div class="ai-insight-panel" id="aiInsightPanel">
+      <button class="ai-insight-toggle" onclick="toggleInsightPanel()">AI Insight <span id="insightChevron">⌄</span></button>
+      <div class="ai-insight-body" id="aiInsightBody">
+        <div class="insight-skeleton"></div>
+        <div class="insight-skeleton" style="width:82%;"></div>
+      </div>
     </div>
   `;
 
   rightCol.insertBefore(section, disclaimer);
+  window.hpAnalyticsHistory = userHistory;
+}
+
+function buildDimensionTrendTable(sessions) {
+  const dims = [
+    ['cognitive', 'Cognitive'],
+    ['anxiety', 'Anxiety'],
+    ['emotional', 'Emotional'],
+    ['sleep', 'Sleep'],
+  ];
+  const colCount = sessions.length + 1;
+  let cells = `<div class="dimension-trend"><div class="dimension-grid" style="grid-template-columns: 130px repeat(${sessions.length}, minmax(82px, 1fr));">`;
+  cells += `<div class="dt-cell dt-head">Dimension</div>`;
+  sessions.forEach((s, i) => {
+    const suffix = i === sessions.length - 1 ? 'Latest' : `Session ${i + 1}`;
+    cells += `<div class="dt-cell dt-head">${suffix}<br><span style="font-weight:600;text-transform:none;letter-spacing:0;">${formatHistoryDate(s.date)}</span></div>`;
+  });
+  dims.forEach(([key, label]) => {
+    cells += `<div class="dt-cell dt-dim">${label}</div>`;
+    sessions.forEach((s, i) => {
+      const current = Number((s.breakdown || {})[key]) || 0;
+      const prev = i > 0 ? Number((sessions[i - 1].breakdown || {})[key]) || 0 : current;
+      const cls = current > prev ? 'dt-up' : current < prev ? 'dt-down' : 'dt-flat';
+      const arrow = current > prev ? '↑' : current < prev ? '↓' : '→';
+      cells += `<div class="dt-cell ${cls}">${current} ${i > 0 ? arrow : ''}</div>`;
+    });
+  });
+  cells += `</div></div>`;
+  return cells;
+}
+
+function computeWeeklyStreak(sessions) {
+  const sorted = [...sessions].sort((a, b) => new Date(a.date) - new Date(b.date));
+  if (sorted.length < 2) return 0;
+  let streak = 1;
+  for (let i = sorted.length - 1; i > 0; i--) {
+    const current = sorted[i];
+    const prev = sorted[i - 1];
+    const isWeeklyType = (current.checkin_type || 'full') === 'weekly' || (prev.checkin_type || 'full') === 'weekly';
+    const days = Math.round((new Date(current.date) - new Date(prev.date)) / 86400000);
+    if ((isWeeklyType && days >= 5 && days <= 9) || days >= 5 && days <= 9) streak++;
+    else break;
+  }
+  const weeklyCount = sorted.filter(s => (s.checkin_type || 'full') === 'weekly').length;
+  return weeklyCount >= 2 || streak >= 2 ? streak : 0;
+}
+
+async function toggleInsightPanel() {
+  const panel = document.getElementById('aiInsightPanel');
+  const body = document.getElementById('aiInsightBody');
+  const chevron = document.getElementById('insightChevron');
+  if (!panel || !body) return;
+  panel.classList.toggle('open');
+  if (chevron) chevron.textContent = panel.classList.contains('open') ? '⌃' : '⌄';
+  if (!panel.classList.contains('open') || body.dataset.loaded === 'true') return;
+
+  const email = (localStorage.getItem('logged_in_email') || '').toLowerCase();
+  const history = (window.hpAnalyticsHistory || []).slice(-5);
+  const latest = history[history.length - 1] || {};
+  const cacheKey = `hp_insight_cache_${email}_${latest.session_id || latest.date || 'latest'}`;
+  const cached = localStorage.getItem(cacheKey);
+  if (cached) {
+    body.textContent = cached;
+    body.dataset.loaded = 'true';
+    return;
+  }
+
+  try {
+    const res = await fetch('http://localhost:5000/analytics/insight', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, session_history: history })
+    });
+    const data = await res.json();
+    const insight = data.insight || 'Your trend is ready to review. Pick one small routine this week and track whether it changes your highest stress dimension.';
+    localStorage.setItem(cacheKey, insight);
+    body.textContent = insight;
+    body.dataset.loaded = 'true';
+  } catch (_) {
+    body.textContent = 'Your trend is ready to review. Pick one small routine this week and track whether it changes your highest stress dimension.';
+    body.dataset.loaded = 'true';
+  }
 }
 
 /* ── PDF EXPORT ── */

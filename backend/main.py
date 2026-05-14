@@ -1,8 +1,8 @@
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Optional, Any, Dict
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 import os
 import time
@@ -70,6 +70,24 @@ class GenerateQuestionsPayload(BaseModel):
     level: str
 
 
+class WeeklyCheckinPayload(BaseModel):
+    email: str
+    role: str
+    session_history: List[Dict[str, Any]] = Field(default_factory=list)
+
+
+class WeeklySubmitPayload(BaseModel):
+    email: str
+    answers: List[int]
+    questions: List[Dict[str, str]]
+    user: Optional[UserInfo] = None
+
+
+class AnalyticsInsightPayload(BaseModel):
+    email: str
+    session_history: List[Dict[str, Any]] = Field(default_factory=list)
+
+
 class SignupPayload(BaseModel):
     name: str
     email: str
@@ -102,6 +120,20 @@ FALLBACK_FOLLOWUP_QUESTIONS = [
     {"q": "How frequently do you feel emotionally drained even after routine activities?", "cat": "emotional"},
     {"q": "How often do stress-related thoughts make it harder for you to fall asleep?", "cat": "sleep"},
     {"q": "How often do you feel you have enough support to handle your current stressors?", "cat": "emotional"},
+]
+
+
+FALLBACK_WEEKLY_QUESTIONS = [
+    {"q": "Compared with your last assessment, how often have racing thoughts interrupted your day this week?", "cat": "cognitive", "focus": True},
+    {"q": "How often did unfinished tasks stay on your mind after you tried to rest?", "cat": "cognitive", "focus": True},
+    {"q": "How often did upcoming responsibilities create noticeable worry this week?", "cat": "anxiety", "focus": True},
+    {"q": "How often did you feel physical tension, restlessness, or a fast heartbeat during stressful moments?", "cat": "anxiety", "focus": True},
+    {"q": "How often did you feel emotionally drained by the end of the day?", "cat": "emotional", "focus": False},
+    {"q": "How often did your mood recover after taking a short break or talking to someone supportive?", "cat": "emotional", "focus": False},
+    {"q": "How often did stress make it harder to fall asleep or stay asleep?", "cat": "sleep", "focus": False},
+    {"q": "How often did you wake up feeling rested enough to handle the day?", "cat": "sleep", "focus": False},
+    {"q": "How often did this week's stress feel more manageable than your previous assessment?", "cat": "emotional", "focus": False},
+    {"q": "How often were you able to pause and reset before stress built up?", "cat": "cognitive", "focus": False},
 ]
 
 
@@ -279,7 +311,7 @@ def safe_extract_json_block(text: str) -> str:
     return cleaned
 
 
-def parse_followup_questions(raw_text: str) -> List[dict]:
+def parse_followup_questions(raw_text: str, min_count: int = 5, max_count: int = 8, keep_focus: bool = False) -> List[dict]:
     json_text = safe_extract_json_block(raw_text)
     parsed = json.loads(json_text)
     questions = parsed.get("questions", []) if isinstance(parsed, dict) else []
@@ -292,10 +324,13 @@ def parse_followup_questions(raw_text: str) -> List[dict]:
         q = str(item.get("q", "")).strip()
         cat = str(item.get("cat", "")).strip().lower()
         if q and cat in VALID_CATS:
-            valid_questions.append({"q": q, "cat": cat})
-    if len(valid_questions) < 5:
+            parsed_item = {"q": q, "cat": cat}
+            if keep_focus:
+                parsed_item["focus"] = bool(item.get("focus", False))
+            valid_questions.append(parsed_item)
+    if len(valid_questions) < min_count:
         return []
-    return valid_questions[:8]
+    return valid_questions[:max_count]
 
 
 def generate_questions_with_gemini(payload: GenerateQuestionsPayload) -> List[dict]:
@@ -303,7 +338,7 @@ def generate_questions_with_gemini(payload: GenerateQuestionsPayload) -> List[di
         return FALLBACK_FOLLOWUP_QUESTIONS
     try:
         genai.configure(api_key=GEMINI_API_KEY)
-        model = genai.GenerativeModel("gemini-1.5-flash")
+        model = genai.GenerativeModel("gemini-2.5-flash")
         prompt = build_gemini_prompt(
             role=payload.role,
             answers=payload.answers,
@@ -316,6 +351,152 @@ def generate_questions_with_gemini(payload: GenerateQuestionsPayload) -> List[di
         return parsed_questions if parsed_questions else FALLBACK_FOLLOWUP_QUESTIONS
     except Exception:
         return FALLBACK_FOLLOWUP_QUESTIONS
+
+
+def normalize_breakdown(raw: Any) -> dict:
+    raw = raw if isinstance(raw, dict) else {}
+    return {key: int(raw.get(key, 0) or 0) for key in VALID_CATS}
+
+
+def parse_session_date(value: Any) -> datetime:
+    text = str(value or "").strip()
+    if not text:
+        return datetime.min
+    try:
+        return datetime.fromisoformat(text.replace("Z", "+00:00")).replace(tzinfo=None)
+    except Exception:
+        return datetime.min
+
+
+def sorted_sessions_desc(session_history: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    safe_history = session_history if isinstance(session_history, list) else []
+    return sorted(
+        [s for s in safe_history if isinstance(s, dict)],
+        key=lambda s: parse_session_date(s.get("date")),
+        reverse=True,
+    )
+
+
+def get_user_sessions(email: str) -> List[dict]:
+    users_data = load_users()
+    user = users_data.get(email.strip().lower())
+    if not user:
+        return []
+    user_sessions = user.get("sessions", [])
+    return user_sessions if isinstance(user_sessions, list) else []
+
+
+def compute_avg_breakdown(recent_sessions: List[Dict[str, Any]]) -> dict:
+    if not recent_sessions:
+        return {key: 0.0 for key in VALID_CATS}
+    totals = {key: 0.0 for key in VALID_CATS}
+    for session in recent_sessions:
+        breakdown = normalize_breakdown(session.get("breakdown", {}))
+        for key in totals:
+            totals[key] += breakdown[key]
+    return {key: round(totals[key] / len(recent_sessions), 2) for key in totals}
+
+
+def build_weekly_checkin_prompt(role: str, avg_breakdown: dict, top_2_dims: List[str], last_session: dict, session_count: int) -> str:
+    last_breakdown_str = json.dumps(last_session.get("breakdown", {}))
+    last_level = last_session.get("level", "Moderate")
+    last_date = str(last_session.get("date", ""))[:10]
+
+    return f"""
+You are a clinical psychologist conducting a weekly stress monitoring follow-up.
+
+USER PROFILE:
+- Role: {role}
+- Assessment number: {session_count + 1} (returning user)
+- Last assessed: {last_date}
+- Last stress level: {last_level}
+- Last breakdown: {last_breakdown_str}
+- Historical averages: Cognitive {avg_breakdown['cognitive']:.1f}, Anxiety {avg_breakdown['anxiety']:.1f}, Emotional {avg_breakdown['emotional']:.1f}, Sleep {avg_breakdown['sleep']:.1f}
+- Primary concern dimensions this week: {', '.join(top_2_dims)}
+
+Generate exactly 10 personalized weekly check-in questions that:
+1. Reference the user's previous experience indirectly.
+2. Focus 4-5 questions on the top concern dimensions: {', '.join(top_2_dims)}
+3. Include 2-3 questions tracking improvement or regression from last assessment
+4. Are answerable on a 1-5 frequency scale (1=Never, 5=Always)
+5. Feel conversational and supportive, not clinical and cold
+6. Are specific to a {role}'s context
+
+Return ONLY valid JSON, no preamble, no markdown fences:
+{{
+  "questions": [
+    {{ "q": "Question text?", "cat": "cognitive|anxiety|emotional|sleep", "focus": true|false }}
+  ]
+}}
+
+"focus" is true if the question targets one of the top_2_dims.
+""".strip()
+
+
+def build_insight_prompt(role: str, session_history: List[Dict[str, Any]]) -> str:
+    sessions_str = json.dumps([
+        {
+            "date": str(s.get("date", ""))[:10],
+            "score": s.get("score", 0),
+            "level": s.get("level", "Low"),
+            "breakdown": s.get("breakdown", {}),
+        }
+        for s in session_history[-5:]
+    ], indent=2)
+
+    return f"""
+You are a clinical psychologist analyzing a {role}'s stress trend data.
+
+ASSESSMENT HISTORY (chronological):
+{sessions_str}
+
+Write a 2-3 sentence personalized insight that:
+1. Acknowledges the trend honestly (improving/stable/worsening)
+2. Highlights the most significant dimension change
+3. Gives one concrete, actionable micro-recommendation for this week
+4. Uses warm, empathetic language, not cold clinical language
+
+Return ONLY the insight as plain text. No headers, no bullets, no JSON.
+Maximum 80 words.
+""".strip()
+
+
+def generate_weekly_questions_with_gemini(role: str, avg_breakdown: dict, top_2_dims: List[str], last_session: dict, session_count: int) -> List[dict]:
+    if not GEMINI_API_KEY or genai is None:
+        return FALLBACK_WEEKLY_QUESTIONS
+    try:
+        genai.configure(api_key=GEMINI_API_KEY)
+        model = genai.GenerativeModel("gemini-2.5-flash")
+        prompt = build_weekly_checkin_prompt(role, avg_breakdown, top_2_dims, last_session, session_count)
+        result = model.generate_content(prompt)
+        text = getattr(result, "text", "") or ""
+        parsed_questions = parse_followup_questions(text, min_count=10, max_count=12, keep_focus=True)
+        return parsed_questions if parsed_questions else FALLBACK_WEEKLY_QUESTIONS
+    except Exception:
+        return FALLBACK_WEEKLY_QUESTIONS
+
+
+def compute_weekly_breakdown(answers: List[int], questions: List[dict]) -> dict:
+    breakdown = {"cognitive": 0, "anxiety": 0, "emotional": 0, "sleep": 0}
+    for i, val in enumerate(answers):
+        if i < len(questions):
+            cat = str(questions[i].get("cat", "cognitive")).lower()
+            if cat in breakdown:
+                breakdown[cat] += val
+    return breakdown
+
+
+def fallback_insight(session_history: List[Dict[str, Any]]) -> str:
+    if len(session_history) < 2:
+        return "Your latest check-in gives us a useful new baseline. This week, choose one small routine you can repeat daily, such as a short wind-down before sleep."
+    previous = session_history[-2]
+    latest = session_history[-1]
+    delta = int(latest.get("score", 0) or 0) - int(previous.get("score", 0) or 0)
+    trend = "improved" if delta < 0 else "increased" if delta > 0 else "stayed steady"
+    latest_bd = normalize_breakdown(latest.get("breakdown", {}))
+    prev_bd = normalize_breakdown(previous.get("breakdown", {}))
+    changed_dim = max(VALID_CATS, key=lambda key: abs(latest_bd[key] - prev_bd[key]))
+    return f"Your stress score has {trend} compared with your previous assessment. The biggest shift is in {changed_dim}, so keep this week simple: schedule one brief reset before that pressure usually peaks."
 
 
 # ── Routes ────────────────────────────────────────────────────
@@ -418,6 +599,8 @@ async def submit(payload: SubmitPayload):
         "breakdown": breakdown,
         "report": report,
         "remedies": remedies,
+        "checkin_type": "full",
+        "session_number": 1,
     }
 
     # ── Persist to MongoDB (if configured) ────────────────────
@@ -443,6 +626,7 @@ async def submit(payload: SubmitPayload):
                 sessions_data = users_data[email].get("sessions", [])
                 if not isinstance(sessions_data, list):
                     sessions_data = []
+                session_doc["session_number"] = len(sessions_data) + 1
                 sessions_data.append(session_doc)
                 users_data[email]["sessions"] = sessions_data
                 save_users(users_data)
@@ -474,6 +658,169 @@ def get_my_sessions(email: str = Query(...)):
         return {"sessions": []}
     user_sessions = user.get("sessions", [])
     return {"sessions": user_sessions if isinstance(user_sessions, list) else []}
+
+
+@app.get("/users/me/weekly-status")
+def get_weekly_status(email: str = Query(...)):
+    session_history = sorted_sessions_desc(get_user_sessions(email))
+    if not session_history:
+        return {"eligible": False, "reason": "no_sessions"}
+
+    last_session = session_history[0]
+    last_date = parse_session_date(last_session.get("date"))
+    if last_date == datetime.min:
+        return {"eligible": False, "reason": "invalid_last_session", "session_count": len(session_history)}
+
+    days_since = max(0, (datetime.utcnow() - last_date).days)
+    if datetime.utcnow() - last_date >= timedelta(days=7):
+        return {
+            "eligible": True,
+            "last_session": last_session,
+            "days_since": days_since,
+            "session_count": len(session_history),
+        }
+
+    return {
+        "eligible": False,
+        "reason": "too_soon",
+        "days_until_eligible": max(1, 7 - days_since),
+        "days_since": days_since,
+        "session_count": len(session_history),
+        "last_session": last_session,
+    }
+
+
+@app.post("/weekly-checkin/generate-questions")
+def generate_weekly_checkin(payload: WeeklyCheckinPayload):
+    session_history = payload.session_history or get_user_sessions(payload.email)
+    sorted_history = sorted_sessions_desc(session_history)
+    if not sorted_history:
+        return {
+            "questions": FALLBACK_WEEKLY_QUESTIONS,
+            "focus_dimensions": ["cognitive", "anxiety"],
+            "avg_breakdown": {key: 0.0 for key in VALID_CATS},
+        }
+
+    recent_sessions = sorted_history[:3]
+    avg_breakdown = compute_avg_breakdown(recent_sessions)
+    top_2_dimensions = sorted(avg_breakdown.keys(), key=lambda key: avg_breakdown[key], reverse=True)[:2]
+    last_session = sorted_history[0]
+    questions = generate_weekly_questions_with_gemini(
+        role=payload.role,
+        avg_breakdown=avg_breakdown,
+        top_2_dims=top_2_dimensions,
+        last_session=last_session,
+        session_count=len(sorted_history),
+    )
+    return {
+        "questions": questions,
+        "focus_dimensions": top_2_dimensions,
+        "avg_breakdown": avg_breakdown,
+    }
+
+
+@app.post("/weekly-checkin/submit")
+def submit_weekly_checkin(payload: WeeklySubmitPayload):
+    if not payload.answers:
+        raise HTTPException(status_code=400, detail="No answers provided")
+    if len(payload.answers) < 10 or len(payload.answers) > 12:
+        raise HTTPException(status_code=422, detail="Weekly check-in requires 10 to 12 answers")
+    if any((not isinstance(v, int)) or v < 1 or v > 5 for v in payload.answers):
+        raise HTTPException(status_code=422, detail="All answer values must be integers between 1 and 5")
+
+    email = payload.email.strip().lower()
+    user = payload.user or UserInfo(email=email)
+    if not user.email:
+        user.email = email
+
+    questions = payload.questions if isinstance(payload.questions, list) else []
+    breakdown = compute_weekly_breakdown(payload.answers, questions)
+    score = sum(payload.answers)
+    level = compute_level(breakdown)
+    report = REPORTS[level]
+    remedies = build_remedies(breakdown)
+
+    users_data = load_users()
+    sessions_data = []
+    if email not in users_data:
+        users_data[email] = {
+            "name": user.name or "",
+            "email": email,
+            "password": "",
+            "age": user.age or "",
+            "gender": user.gender or "",
+            "phone": user.phone or "",
+            "role": user.role or "",
+            "sessions": [],
+        }
+    sessions_data = users_data[email].get("sessions", [])
+    if not isinstance(sessions_data, list):
+        sessions_data = []
+
+    session_doc = {
+        "session_id": str(uuid.uuid4()),
+        "date": datetime.utcnow().isoformat(),
+        "role": user.role or "",
+        "answers": payload.answers,
+        "questions": questions,
+        "score": score,
+        "level": level,
+        "breakdown": breakdown,
+        "report": report,
+        "remedies": remedies,
+        "checkin_type": "weekly",
+        "session_number": len(sessions_data) + 1,
+    }
+
+    sessions_data.append(session_doc)
+    users_data[email]["sessions"] = sessions_data
+    save_users(users_data)
+
+    sessions.append({
+        "ts": datetime.utcnow().isoformat(),
+        "user": user.model_dump(),
+        "score": score,
+        "level": level,
+        "breakdown": breakdown,
+        "checkin_type": "weekly",
+    })
+
+    return {
+        "score": score,
+        "level": level,
+        "report": report,
+        "breakdown": breakdown,
+        "remedies": remedies,
+    }
+
+
+@app.post("/analytics/insight")
+def analytics_insight(payload: AnalyticsInsightPayload):
+    history = payload.session_history or get_user_sessions(payload.email)
+    chronological = list(reversed(sorted_sessions_desc(history)))[-5:]
+    if not chronological:
+        return {"insight": fallback_insight([])}
+
+    role = ""
+    users_data = load_users()
+    user = users_data.get(payload.email.strip().lower())
+    if user:
+        role = user.get("role", "")
+    role = role or chronological[-1].get("role", "user")
+
+    if not GEMINI_API_KEY or genai is None:
+        return {"insight": fallback_insight(chronological)}
+
+    try:
+        genai.configure(api_key=GEMINI_API_KEY)
+        model = genai.GenerativeModel("gemini-2.5-flash")
+        result = model.generate_content(build_insight_prompt(role, chronological))
+        insight = (getattr(result, "text", "") or "").strip()
+        if not insight:
+            insight = fallback_insight(chronological)
+        return {"insight": insight[:700]}
+    except Exception:
+        return {"insight": fallback_insight(chronological)}
 
 
 @app.get("/sessions")

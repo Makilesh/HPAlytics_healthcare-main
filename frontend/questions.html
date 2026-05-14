@@ -359,6 +359,7 @@
     <div class="nav-sep"></div>
     <div class="nav-step"><div class="nav-step-num">4</div> Report</div>
   </div>
+  <div id="weeklyNavBadge" style="display:none;"><a href="checkin.html" class="weekly-badge">↻ Weekly Check-In Ready</a></div>
   <div id="authNavSlot"></div>
 </nav>
 
@@ -460,7 +461,8 @@
 <script>
 const APP_KEYS = [
   'logged_in_email', 'mp_name', 'mp_email', 'mp_phone', 'user',
-  'score', 'result', 'report', 'breakdown', 'remedies', 'hp_history', 'hp_returning'
+  'score', 'result', 'report', 'breakdown', 'remedies', 'hp_history', 'hp_returning',
+  'hp_weekly_questions', 'hp_weekly_focus_dims', 'hp_weekly_avg_breakdown', 'hp_checkin_type'
 ];
 
 /* ─── DATA ─── */
@@ -589,6 +591,7 @@ window.addEventListener('DOMContentLoaded', () => {
   currentQuestions = questionsR1;
 
   renderNavAuth();
+  initWeeklyNavBadge(loggedEmail);
   const name = user.name || 'User';
   document.getElementById('userNameSide').textContent = name;
   document.getElementById('userRoleSide').textContent = ROLE_LABELS[role] || role;
@@ -608,6 +611,18 @@ function renderNavAuth() {
       <button class="btn-secondary" style="width:auto;padding:10px 14px;" onclick="logout()">Logout</button>
     </div>
   `;
+}
+
+async function initWeeklyNavBadge(email) {
+  const badge = document.getElementById('weeklyNavBadge');
+  if (!badge || !email) return;
+  try {
+    const res = await fetch(`http://localhost:5000/users/me/weekly-status?email=${encodeURIComponent(email)}`);
+    const data = await res.json();
+    badge.style.display = data.eligible ? 'block' : 'none';
+  } catch (_) {
+    badge.style.display = 'none';
+  }
 }
 
 function logout() {
@@ -874,6 +889,7 @@ async function submitAll() {
     localStorage.setItem('breakdown', JSON.stringify(bd));
     localStorage.setItem('remedies',  JSON.stringify(remedies));
   }
+  localStorage.setItem('hp_checkin_type', 'full');
 
   setTimeout(() => window.location.href = 'result.html', 2200);
 }

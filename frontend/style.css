@@ -129,9 +129,32 @@ body {
 .nav-step.done   .nav-step-num { background: var(--sage-pale); color: var(--sage); }
 .nav-sep { width: 22px; height: 1px; background: var(--border-sm); }
 
+.weekly-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 20px;
+  background: var(--amber-pale);
+  border: 1.5px solid rgba(196,149,42,0.3);
+  color: var(--amber);
+  font-family: 'Nunito', sans-serif;
+  font-size: 12px;
+  font-weight: 800;
+  text-decoration: none;
+  animation: pulse 2s ease-in-out infinite;
+  white-space: nowrap;
+}
+
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(196,149,42,0.3); }
+  50% { box-shadow: 0 0 0 6px rgba(196,149,42,0); }
+}
+
 @media (max-width: 680px) {
   .mp-nav { padding: 0 20px; }
   .nav-steps { display: none; }
+  .weekly-badge { padding: 7px 10px; font-size: 11px; }
 }
 
 /* ── PAGE SCAFFOLD ────────────────────── */
@@ -334,6 +357,141 @@ body {
 
 @media (max-width: 580px) {
   .remedy-wrap.open .remedy-body { grid-template-columns: 1fr; }
+}
+
+/* ── WEEKLY ANALYTICS ─────────────────── */
+.analytics-chart-wrap {
+  position: relative;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.trend-pill {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: 20px;
+  background: var(--teal-ultra);
+  border: 1px solid var(--border-sm);
+  color: var(--teal);
+  font-family: 'Nunito', sans-serif;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: center;
+  font-family: 'Nunito', sans-serif;
+  font-size: 12px;
+  color: var(--text-500);
+  margin-top: 10px;
+}
+
+.legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.dimension-trend {
+  margin-top: 22px;
+  overflow-x: auto;
+}
+
+.dimension-grid {
+  display: grid;
+  min-width: 560px;
+  border: 1px solid var(--border-sm);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  background: var(--bg-white);
+}
+
+.dt-cell {
+  padding: 10px 12px;
+  border-right: 1px solid var(--border-sm);
+  border-bottom: 1px solid var(--border-sm);
+  font-family: 'Nunito', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-500);
+  background: var(--bg-white);
+}
+
+.dt-cell:nth-child(1) { color: var(--text-900); }
+.dt-head { background: var(--teal-ultra); color: var(--teal); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
+.dt-dim { background: var(--bg-canvas); color: var(--text-900); }
+.dt-up { color: var(--blush); }
+.dt-down { color: var(--sage); }
+.dt-flat { color: var(--text-400); }
+
+.streak-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 18px;
+  padding: 10px 14px;
+  border-radius: 22px;
+  background: var(--amber-pale);
+  border: 1px solid rgba(196,149,42,0.3);
+  color: var(--amber);
+  font-family: 'Nunito', sans-serif;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.ai-insight-panel {
+  margin-top: 20px;
+  border: 1px solid var(--border-sm);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  background: var(--bg-white);
+}
+
+.ai-insight-toggle {
+  width: 100%;
+  border: none;
+  background: var(--teal-ultra);
+  color: var(--teal);
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: 'Nunito', sans-serif;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.ai-insight-body {
+  display: none;
+  padding: 16px;
+  font-family: 'Nunito', sans-serif;
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--text-500);
+}
+
+.ai-insight-panel.open .ai-insight-body { display: block; }
+
+.insight-skeleton {
+  height: 12px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, var(--bg-subtle), var(--teal-pale), var(--bg-subtle));
+  margin-bottom: 9px;
+}
+
+@media (max-width: 600px) {
+  .trend-pill { position: static; margin-bottom: 10px; }
+  .dimension-grid { min-width: 480px; }
 }
 
 /* ── ANIMATIONS ───────────────────────── */

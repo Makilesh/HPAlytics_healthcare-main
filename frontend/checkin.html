@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HPAlytics — Weekly Check-In</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Nunito:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+.checkin-shell { min-height: calc(100vh - 72px); display: grid; grid-template-columns: 300px 1fr; }
+.checkin-sidebar { background: var(--bg-white); border-right: 1px solid var(--border-sm); padding: 40px 28px; position: sticky; top: 72px; height: calc(100vh - 72px); display: flex; flex-direction: column; overflow-y: auto; }
+.sidebar-user-card { display: flex; align-items: center; gap: 12px; padding: 14px 16px; background: var(--teal-ultra); border: 1px solid var(--border-sm); border-radius: var(--r-md); margin-bottom: 24px; }
+.user-avatar { width: 42px; height: 42px; border-radius: 50%; background: linear-gradient(135deg, var(--teal), var(--teal-light)); display: flex; align-items: center; justify-content: center; color: white; font-family: 'Playfair Display', serif; font-weight: 700; }
+.user-name { font-family: 'Nunito', sans-serif; font-size: 14px; font-weight: 800; color: var(--text-900); }
+.user-role { font-family: 'Nunito', sans-serif; font-size: 11px; font-weight: 700; color: var(--teal-mid); }
+.focus-card { padding: 16px; background: var(--amber-pale); border: 1px solid rgba(196,149,42,0.3); border-radius: var(--r-md); margin-bottom: 22px; }
+.focus-label { font-family: 'Nunito', sans-serif; font-size: 10px; font-weight: 800; letter-spacing: 1.6px; text-transform: uppercase; color: var(--amber); margin-bottom: 8px; }
+.focus-tags { display: flex; flex-wrap: wrap; gap: 7px; }
+.focus-tag { padding: 6px 10px; border-radius: 18px; background: var(--bg-white); color: var(--amber); font-family: 'Nunito', sans-serif; font-size: 12px; font-weight: 800; border: 1px solid rgba(196,149,42,0.24); text-transform: capitalize; }
+.q-dot-list { display: flex; flex-direction: column; gap: 6px; }
+.q-dot-item { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: var(--r-sm); font-family: 'Nunito', sans-serif; font-size: 12px; color: var(--text-300); transition: all 200ms var(--ease); }
+.q-dot-num { width: 22px; height: 22px; border-radius: 50%; background: var(--bg-subtle); display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800; }
+.q-dot-item.answered { color: var(--teal-mid); }
+.q-dot-item.answered .q-dot-num { background: var(--teal-pale); color: var(--teal); }
+.q-dot-item.current { background: var(--teal-pale); color: var(--teal); font-weight: 800; }
+.q-dot-item.current .q-dot-num { background: var(--teal); color: white; }
+.q-dot-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 11px; }
+.score-card { margin-top: auto; padding: 16px; background: var(--bg-canvas); border: 1px solid var(--border-sm); border-radius: var(--r-md); }
+.score-label { font-family: 'Nunito', sans-serif; font-size: 10px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-300); margin-bottom: 6px; }
+.score-value { font-family: 'Playfair Display', serif; font-size: 32px; font-weight: 700; color: var(--teal); line-height: 1; }
+.checkin-main { background: var(--bg-canvas); padding: 48px 64px; }
+.checkin-top { display: flex; align-items: center; gap: 16px; margin-bottom: 36px; }
+.checkin-progress { flex: 1; }
+.progress-meta { display: flex; justify-content: space-between; font-family: 'Nunito', sans-serif; font-size: 12px; font-weight: 800; color: var(--text-400); margin-bottom: 8px; }
+.days-badge { padding: 8px 14px; border-radius: 20px; background: var(--bg-white); border: 1px solid var(--border-sm); color: var(--teal); font-family: 'Nunito', sans-serif; font-size: 12px; font-weight: 800; box-shadow: var(--shadow-xs); white-space: nowrap; }
+.q-card { background: var(--bg-white); border: 1px solid var(--border-sm); border-radius: var(--r-xl); box-shadow: var(--shadow-lg); padding: 44px 48px; animation: cardReveal 0.4s var(--ease-spring) both; }
+@keyframes cardReveal { from { opacity: 0; transform: translateY(20px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+.q-cat-tag { display: inline-flex; align-items: center; gap: 7px; padding: 6px 14px; border-radius: 20px; font-family: 'Nunito', sans-serif; font-size: 11px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 22px; background: var(--teal-pale); color: var(--teal); border: 1px solid var(--border-md); }
+.q-num-line { font-family: 'Nunito', sans-serif; font-size: 12px; font-weight: 800; color: var(--text-300); letter-spacing: 1px; margin-bottom: 14px; }
+.q-text { font-family: 'Playfair Display', serif; font-size: clamp(20px, 2.8vw, 28px); font-weight: 600; line-height: 1.35; color: var(--text-900); margin-bottom: 36px; }
+.answer-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+.ans-btn { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 20px 8px; background: var(--bg-warm); border: 2px solid var(--border-sm); border-radius: var(--r-md); cursor: pointer; transition: all 220ms var(--ease-spring); text-align: center; }
+.ans-btn:hover { transform: translateY(-5px); box-shadow: var(--shadow-md); border-color: var(--teal-mid); }
+.ans-btn.picking, .ans-btn.selected { transform: scale(1.04) translateY(-4px); background: var(--teal-pale); border-color: var(--teal); }
+.ans-emoji { font-size: 26px; }
+.ans-label { font-family: 'Nunito', sans-serif; font-size: 12px; font-weight: 800; color: var(--text-700); }
+.ans-score-tag { padding: 2px 8px; border-radius: 10px; background: var(--bg-subtle); font-family: 'Nunito', sans-serif; font-size: 10px; font-weight: 700; color: var(--text-400); }
+.loading-overlay { position: fixed; inset: 0; z-index: 400; background: var(--bg-canvas); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; opacity: 0; pointer-events: none; transition: opacity 0.35s; }
+.loading-overlay.active { opacity: 1; pointer-events: all; }
+.loading-brain-wrap { width: 90px; height: 90px; border-radius: 50%; background: var(--teal-pale); border: 2px solid var(--border-md); display: flex; align-items: center; justify-content: center; font-size: 38px; animation: breathe 2s ease-in-out infinite; }
+@keyframes breathe { 0%,100%{transform:scale(1);} 50%{transform:scale(1.08);} }
+.loading-title { font-family: 'Playfair Display', serif; font-size: 24px; font-weight: 600; color: var(--text-900); }
+.loading-sub { font-family: 'Nunito', sans-serif; font-size: 14px; color: var(--text-400); font-weight: 600; }
+.not-ready-wrap { min-height: calc(100vh - 72px); display: none; align-items: center; justify-content: center; background: var(--bg-canvas); padding: 40px 20px; }
+.not-ready-card { width: min(560px, 100%); background: var(--bg-white); border: 1px solid var(--border-sm); border-radius: var(--r-xl); box-shadow: var(--shadow-lg); padding: 34px; text-align: center; }
+.countdown-ring { width: 142px; height: 142px; margin: 0 auto 20px; position: relative; }
+.countdown-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: 'Nunito', sans-serif; color: var(--teal); }
+.countdown-num { font-family: 'Playfair Display', serif; font-size: 42px; font-weight: 700; line-height: 1; }
+.ready-title { font-family: 'Playfair Display', serif; font-size: 26px; font-weight: 700; color: var(--text-900); margin-bottom: 8px; }
+.ready-sub { font-family: 'Nunito', sans-serif; font-size: 14px; line-height: 1.65; color: var(--text-500); margin-bottom: 24px; }
+.ready-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 960px) { .checkin-shell { grid-template-columns: 1fr; } .checkin-sidebar { display: none; } .checkin-main { padding: 32px 24px; } }
+@media (max-width: 600px) { .answer-row { grid-template-columns: repeat(2,1fr); } .q-card { padding: 28px 22px; } .checkin-top { flex-direction: column; align-items: stretch; } .ready-actions { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<nav class="mp-nav">
+  <a href="index.html" class="mp-nav-brand">
+    <div class="nav-mark"><div class="nav-mark-inner">🧠</div></div>
+    <div>
+      <div class="nav-brand-name">HPAlytics</div>
+      <div class="nav-brand-sub">Clinical Platform</div>
+    </div>
+  </a>
+  <div class="nav-steps">
+    <div class="nav-step done"><div class="nav-step-num">✓</div> Entry</div>
+    <div class="nav-sep"></div>
+    <div class="nav-step done"><div class="nav-step-num">✓</div> Profile</div>
+    <div class="nav-sep"></div>
+    <div class="nav-step active"><div class="nav-step-num">↻</div> Weekly Check-In</div>
+    <div class="nav-sep"></div>
+    <div class="nav-step"><div class="nav-step-num">4</div> Report</div>
+  </div>
+  <div id="weeklyNavBadge" style="display:none;"><a href="checkin.html" class="weekly-badge">↻ Weekly Check-In Ready</a></div>
+  <div id="authNavSlot"></div>
+</nav>
+
+<div class="loading-overlay active" id="loadingOverlay">
+  <div class="loading-brain-wrap">🧠</div>
+  <div class="loading-title" id="loadingTitle">Preparing your weekly check-in…</div>
+  <div class="loading-sub" id="loadingSub">Comparing with your history…</div>
+</div>
+
+<main class="mp-page">
+  <section class="not-ready-wrap" id="notReadyWrap">
+    <div class="not-ready-card fade-up">
+      <div class="countdown-ring">
+        <svg viewBox="0 0 140 140" width="142" height="142">
+          <circle cx="70" cy="70" r="58" fill="none" stroke="var(--bg-subtle)" stroke-width="10"></circle>
+          <circle id="countdownArc" cx="70" cy="70" r="58" fill="none" stroke="var(--amber)" stroke-width="10" stroke-linecap="round" stroke-dasharray="364.4" stroke-dashoffset="0" transform="rotate(-90 70 70)"></circle>
+        </svg>
+        <div class="countdown-center">
+          <div class="countdown-num" id="daysUntil">0</div>
+          <div>days</div>
+        </div>
+      </div>
+      <div class="ready-title">Your next check-in is almost ready</div>
+      <div class="ready-sub" id="notReadyText">Your next check-in is available soon.</div>
+      <div class="ready-actions">
+        <button class="btn-secondary" onclick="window.location.href='result.html'">View Your History</button>
+        <button class="btn-primary" onclick="window.location.href='questions.html'">Start Full Assessment</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="checkin-shell" id="checkinShell" style="display:none;">
+    <aside class="checkin-sidebar">
+      <div class="sidebar-user-card">
+        <div class="user-avatar" id="userInitial">?</div>
+        <div>
+          <div class="user-name" id="userNameSide">Loading…</div>
+          <div class="user-role" id="userRoleSide">Weekly Check-In</div>
+        </div>
+      </div>
+      <div class="focus-card">
+        <div class="focus-label">Focus this week</div>
+        <div class="focus-tags" id="focusTags"></div>
+      </div>
+      <div class="focus-label">Questions</div>
+      <div class="q-dot-list" id="dotList"></div>
+      <div class="score-card">
+        <div class="score-label">Score so far</div>
+        <div class="score-value" id="runningScore">0</div>
+        <div class="user-role">out of <span id="maxPossible">50</span> possible</div>
+      </div>
+    </aside>
+
+    <div class="checkin-main">
+      <div class="checkin-top">
+        <div class="checkin-progress">
+          <div class="progress-meta">
+            <span id="progressText">Question 1 of 10</span>
+            <span id="progressPct" style="color:var(--teal);">0%</span>
+          </div>
+          <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+        </div>
+        <div class="days-badge" id="daysBadge">Weekly Check-In</div>
+      </div>
+
+      <div class="q-card" id="qCard">
+        <div class="q-cat-tag" id="catTag">—</div>
+        <div class="q-num-line" id="qNumLine">QUESTION 01 / 10</div>
+        <div class="q-text" id="qText">Loading question…</div>
+        <div class="answer-row" id="answerRow"></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;">
+          <button id="prevBtn" class="btn-secondary" style="height:40px;padding:0 16px;display:none;width:auto;" onclick="goPrev()">← Previous</button>
+          <button id="nextBtn" class="btn-secondary" style="height:40px;padding:0 16px;display:none;width:auto;" onclick="goNext()">Next →</button>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+const APP_KEYS = [
+  'logged_in_email', 'mp_name', 'mp_email', 'mp_phone', 'user',
+  'score', 'result', 'report', 'breakdown', 'remedies', 'hp_history', 'hp_returning',
+  'hp_weekly_questions', 'hp_weekly_focus_dims', 'hp_weekly_avg_breakdown', 'hp_checkin_type'
+];
+const API = 'http://localhost:5000';
+const ROLE_LABELS = { student:'Student', working:'Professional', home:'Homemaker' };
+const CAT_CONFIG = {
+  cognitive: { label:'Cognitive', icon:'🧩' },
+  anxiety: { label:'Anxiety', icon:'💭' },
+  emotional: { label:'Emotional', icon:'💛' },
+  sleep: { label:'Sleep', icon:'💤' }
+};
+const ANSWERS = [
+  { label:'Never', emoji:'😌', val:1 },
+  { label:'Rarely', emoji:'🙂', val:2 },
+  { label:'Sometimes', emoji:'😐', val:3 },
+  { label:'Often', emoji:'😟', val:4 },
+  { label:'Always', emoji:'😰', val:5 },
+];
+const FALLBACK_WEEKLY = [
+  {q:'Compared with your last assessment, how often have racing thoughts interrupted your day this week?', cat:'cognitive', focus:true},
+  {q:'How often did unfinished tasks stay on your mind after you tried to rest?', cat:'cognitive', focus:true},
+  {q:'How often did upcoming responsibilities create noticeable worry this week?', cat:'anxiety', focus:true},
+  {q:'How often did you feel physical tension, restlessness, or a fast heartbeat during stressful moments?', cat:'anxiety', focus:true},
+  {q:'How often did you feel emotionally drained by the end of the day?', cat:'emotional', focus:false},
+  {q:'How often did your mood recover after taking a short break or talking to someone supportive?', cat:'emotional', focus:false},
+  {q:'How often did stress make it harder to fall asleep or stay asleep?', cat:'sleep', focus:false},
+  {q:'How often did you wake up feeling rested enough to handle the day?', cat:'sleep', focus:false},
+  {q:'How often did this week’s stress feel more manageable than your previous assessment?', cat:'emotional', focus:false},
+  {q:'How often were you able to pause and reset before stress built up?', cat:'cognitive', focus:false}
+];
+let user = {};
+let questions = [];
+let focusDims = [];
+let answers = [];
+let idx = 0;
+
+window.addEventListener('DOMContentLoaded', init);
+
+async function init() {
+  const email = (localStorage.getItem('logged_in_email') || '').toLowerCase();
+  if (!email) {
+    window.location.href = 'auth.html';
+    return;
+  }
+  try { user = JSON.parse(localStorage.getItem('user') || '{}'); } catch (_) {}
+  if (!user.email) user.email = email;
+  localStorage.setItem('user', JSON.stringify(user));
+  renderNavAuth();
+  initWeeklyNavBadge(email);
+
+  let status = null;
+  try {
+    const res = await fetch(`${API}/users/me/weekly-status?email=${encodeURIComponent(email)}`);
+    status = await res.json();
+  } catch (_) {}
+
+  if (!status || !status.eligible) {
+    showNotReady(status || { reason:'unavailable', days_until_eligible:7 });
+    return;
+  }
+
+  document.getElementById('daysBadge').textContent = `${status.days_since || 7} days since last assessment`;
+  await loadQuestions(email, status);
+  renderCheckin();
+}
+
+function renderNavAuth() {
+  const firstName = (user.name || 'User').split(' ')[0];
+  document.getElementById('authNavSlot').innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span style="font-family:'Nunito',sans-serif;font-size:12px;font-weight:800;color:var(--teal);">${firstName}</span>
+      <button class="btn-secondary" style="width:auto;padding:10px 14px;" onclick="logout()">Logout</button>
+    </div>`;
+}
+
+async function initWeeklyNavBadge(email) {
+  const badge = document.getElementById('weeklyNavBadge');
+  if (!badge || !email) return;
+  try {
+    const res = await fetch(`${API}/users/me/weekly-status?email=${encodeURIComponent(email)}`);
+    const data = await res.json();
+    badge.style.display = data.eligible ? 'block' : 'none';
+  } catch (_) {
+    badge.style.display = 'none';
+  }
+}
+
+function logout() {
+  APP_KEYS.forEach((key) => localStorage.removeItem(key));
+  window.location.href = 'auth.html';
+}
+
+function showNotReady(status) {
+  document.getElementById('loadingOverlay').classList.remove('active');
+  const days = status.reason === 'no_sessions' ? 7 : Number(status.days_until_eligible || 1);
+  document.getElementById('daysUntil').textContent = days;
+  document.getElementById('notReadyText').textContent = status.reason === 'no_sessions'
+    ? 'Complete one full assessment first so your weekly check-in can personalize future questions.'
+    : `Your next check-in is available in ${days} day${days === 1 ? '' : 's'}.`;
+  const circumference = 364.4;
+  document.getElementById('countdownArc').style.strokeDashoffset = circumference - ((7 - Math.min(days, 7)) / 7) * circumference;
+  document.getElementById('notReadyWrap').style.display = 'flex';
+}
+
+async function fetchHistory(email) {
+  try {
+    const res = await fetch(`${API}/users/me/sessions?email=${encodeURIComponent(email)}`);
+    const data = await res.json();
+    return Array.isArray(data.sessions) ? data.sessions : [];
+  } catch (_) {
+    return [];
+  }
+}
+
+async function loadQuestions(email, status) {
+  let sessionHistory = await fetchHistory(email);
+  try {
+    const res = await fetch(`${API}/weekly-checkin/generate-questions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, role: user.role || 'student', session_history: sessionHistory })
+    });
+    const data = await res.json();
+    questions = Array.isArray(data.questions) && data.questions.length ? data.questions : FALLBACK_WEEKLY;
+    focusDims = Array.isArray(data.focus_dimensions) ? data.focus_dimensions : [];
+    localStorage.setItem('hp_weekly_questions', JSON.stringify(questions));
+    localStorage.setItem('hp_weekly_focus_dims', JSON.stringify(focusDims));
+    localStorage.setItem('hp_weekly_avg_breakdown', JSON.stringify(data.avg_breakdown || {}));
+  } catch (_) {
+    questions = FALLBACK_WEEKLY;
+    focusDims = ['cognitive', 'anxiety'];
+  }
+}
+
+function renderCheckin() {
+  questions = questions.slice(0, 12);
+  document.getElementById('loadingOverlay').classList.remove('active');
+  document.getElementById('checkinShell').style.display = 'grid';
+  const name = user.name || 'User';
+  document.getElementById('userNameSide').textContent = name;
+  document.getElementById('userInitial').textContent = name.charAt(0).toUpperCase();
+  document.getElementById('userRoleSide').textContent = ROLE_LABELS[user.role] || user.role || 'Weekly Check-In';
+  document.getElementById('maxPossible').textContent = questions.length * 5;
+  renderFocusTags();
+  buildDotList();
+  renderQ();
+}
+
+function renderFocusTags() {
+  const wrap = document.getElementById('focusTags');
+  const dims = focusDims.length ? focusDims : Array.from(new Set(questions.filter(q => q.focus).map(q => q.cat))).slice(0, 2);
+  wrap.innerHTML = dims.map(dim => `<span class="focus-tag">${dim}</span>`).join('');
+}
+
+function buildDotList() {
+  const list = document.getElementById('dotList');
+  list.innerHTML = '';
+  questions.forEach((q, i) => {
+    const div = document.createElement('div');
+    div.className = 'q-dot-item' + (i === 0 ? ' current' : '');
+    div.id = `dot-${i}`;
+    div.innerHTML = `<div class="q-dot-num">${i + 1}</div><div class="q-dot-text">${q.q.substring(0, 34)}…</div>`;
+    list.appendChild(div);
+  });
+}
+
+function renderQ() {
+  if (idx >= questions.length) {
+    submitCheckin();
+    return;
+  }
+  const q = questions[idx];
+  const cat = CAT_CONFIG[q.cat] || CAT_CONFIG.cognitive;
+  const pct = Math.round((idx / questions.length) * 100);
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressText').textContent = `Question ${idx + 1} of ${questions.length}`;
+  document.getElementById('progressPct').textContent = pct + '%';
+  document.getElementById('catTag').textContent = `${cat.icon}  ${cat.label} Check-In`;
+  document.getElementById('qNumLine').textContent = `QUESTION ${String(idx + 1).padStart(2, '0')} / ${String(questions.length).padStart(2, '0')}`;
+  document.getElementById('qText').textContent = q.q;
+  document.getElementById('runningScore').textContent = answers.reduce((sum, val) => sum + (val || 0), 0);
+
+  const card = document.getElementById('qCard');
+  card.style.animation = 'none';
+  void card.offsetWidth;
+  card.style.animation = '';
+
+  const row = document.getElementById('answerRow');
+  row.innerHTML = '';
+  ANSWERS.forEach(a => {
+    const btn = document.createElement('button');
+    btn.className = 'ans-btn' + (answers[idx] === a.val ? ' selected' : '');
+    btn.innerHTML = `<div class="ans-emoji">${a.emoji}</div><div class="ans-label">${a.label}</div><div class="ans-score-tag">Score ${a.val}</div>`;
+    btn.onclick = () => pick(a.val, btn);
+    row.appendChild(btn);
+  });
+  updateDots();
+  updateNavButtons();
+}
+
+function pick(val, btn) {
+  document.querySelectorAll('.ans-btn').forEach(b => b.style.pointerEvents = 'none');
+  btn.classList.add('picking');
+  setTimeout(() => {
+    answers[idx] = val;
+    idx++;
+    if (idx < questions.length) renderQ();
+    else submitCheckin();
+  }, 300);
+}
+
+function goPrev() {
+  if (idx === 0) return;
+  idx--;
+  renderQ();
+}
+
+function goNext() {
+  if (answers[idx] === undefined) return;
+  idx++;
+  renderQ();
+}
+
+function updateNavButtons() {
+  document.getElementById('prevBtn').style.display = idx === 0 ? 'none' : 'inline-flex';
+  const nextBtn = document.getElementById('nextBtn');
+  nextBtn.style.display = answers[idx] !== undefined ? 'inline-flex' : 'none';
+}
+
+function updateDots() {
+  document.querySelectorAll('.q-dot-item').forEach((el, i) => {
+    el.className = 'q-dot-item';
+    if (answers[i] !== undefined) el.classList.add('answered');
+    if (i === idx) el.classList.add('current');
+    const num = el.querySelector('.q-dot-num');
+    if (num) num.textContent = answers[i] !== undefined ? '✓' : i + 1;
+  });
+}
+
+function fallbackLevel(bd) {
+  const w = bd.sleep * 1.2 + bd.anxiety * 1.5 + bd.emotional * 1.4 + bd.cognitive * 1.3;
+  return (w > 60 || bd.anxiety >= 8) ? 'High' : (w > 35 ? 'Moderate' : 'Low');
+}
+
+function fallbackBreakdown() {
+  const bd = { cognitive:0, anxiety:0, emotional:0, sleep:0 };
+  answers.forEach((val, i) => {
+    const cat = questions[i] && bd.hasOwnProperty(questions[i].cat) ? questions[i].cat : 'cognitive';
+    bd[cat] += val || 0;
+  });
+  return bd;
+}
+
+async function submitCheckin() {
+  document.getElementById('loadingTitle').textContent = 'Comparing with your history…';
+  document.getElementById('loadingSub').textContent = 'Preparing your weekly report';
+  document.getElementById('loadingOverlay').classList.add('active');
+  const email = (user.email || localStorage.getItem('logged_in_email') || '').toLowerCase();
+  const bd = fallbackBreakdown();
+  const level = fallbackLevel(bd);
+  const score = answers.reduce((sum, val) => sum + val, 0);
+  try {
+    const res = await fetch(`${API}/weekly-checkin/submit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, answers, questions, user })
+    });
+    const data = await res.json();
+    if (!res.ok || data.score === undefined) throw new Error('bad response');
+    localStorage.setItem('score', data.score);
+    localStorage.setItem('result', data.level || level);
+    localStorage.setItem('report', data.report || '');
+    localStorage.setItem('breakdown', JSON.stringify(data.breakdown || bd));
+    localStorage.setItem('remedies', JSON.stringify(data.remedies || []));
+  } catch (_) {
+    localStorage.setItem('score', score);
+    localStorage.setItem('result', level);
+    localStorage.setItem('report', 'Your weekly check-in has been scored locally. Review the trend and continue monitoring changes over time.');
+    localStorage.setItem('breakdown', JSON.stringify(bd));
+    localStorage.setItem('remedies', JSON.stringify([]));
+  }
+  localStorage.setItem('hp_checkin_type', 'weekly');
+  setTimeout(() => window.location.href = 'result.html', 1200);
+}
+</script>
+</body>
+</html>
